@@ -1,0 +1,65 @@
+1 js to baidu.com
+http://hectorstatic.baidu.com/cd37ed75a9387c5b.js  |  68930  |  200
+
+1 js to other
+
+
+42 url to baidu.com
+https://passport.baidu.com/v2/?login&tpl=mn&u=http://www.baidu.com/&sms=5  |  6350  |  200
+http://www.baidu.com/more/  |  47823  |  200
+https://www.baidu.com/s?ie=UTF-8&wd=%E9%AB%98%E8%80%83&rsv_dl=GK_PC_2022_index_tips  |  227  |  200
+http://www.baidu.com  |  362081  |  200
+http://www.baidu.com/baidu.html?from=noscript  |  2947  |  200
+http://www.baidu.com/content-search.xml  |  255  |  200
+http://www.baidu.com/img/baidu_85beaf5496f291521eb75ba38eacbd87.svg  |  3834  |  200
+http://www.baidu.com/s?  |  1545  |  200
+http://www.baidu.com/  |  362075  |  200
+http://www.baidu.com/licence/  |  1382  |  200
+http://www.baidu.com/duty  |  14043  |  200
+http://www.baidu.com/home  |  155322  |  200
+http://www.baidu.com/ups/submit/addtips?product=ps&from=pcfe&tips=  |  15  |  200
+http://www.baidu.com/s?rtt=1&bsst=1&cl=2&tn=news&word=  |  359057  |  200
+http://www.baidu.com/home/page/data/pageserver?errno=7004&from=superman&_t  |  36  |  200
+http://www.baidu.com/&sms=5  |  208  |  404
+http://map.baidu.com  |  160848  |  200
+https://top.baidu.com/board?platform=pc&sa=pcindex_entry  |  229592  |  200
+http://ir.baidu.com  |  52161  |  200
+http://tieba.baidu.com/f?fr=wwwt  |  158227  |  200
+https://b2b.baidu.com/s?fr=wwwt  |  8558  |  200
+http://tieba.baidu.com/  |  158225  |  200
+http://passport.baidu.com/ubrwsbas  |  6355  |  200
+http://hi.baidu.com/  |  4396  |  200
+http://suggestion.baidu.com/su  |  33  |  200
+https://haokan.baidu.com/?sfrom=baidu-top  |  60567  |  200
+http://image.baidu.com/  |  192988  |  200
+https://pan.baidu.com?from=1026962h  |  9551  |  200
+http://sp0.baidu.com  |  362123  |  200
+http://sp1.baidu.com  |  362173  |  200
+http://sp2.baidu.com  |  362086  |  200
+http://news.baidu.com  |  79185  |  200
+http://fanyi.baidu.com/  |  204616  |  200
+http://home.baidu.com  |  68712  |  200
+http://xueshu.baidu.com/  |  37956  |  200
+https://wenku.baidu.com  |  21359  |  200
+http://help.baidu.com  |  17544  |  200
+https://baike.baidu.com  |  91387  |  200
+https://zhidao.baidu.com  |  77677  |  200
+https://jiankang.baidu.com/widescreen/home  |  135281  |  200
+http://e.baidu.com/ebaidu/home?refer=887  |  36728  |  200
+https://live.baidu.com/?source=search_home  |  7325  |  200
+
+18 url to other
+http://ss.bdimg.com/static/superman/font/iconfont-5f3e71d33e.eot  |  38748  |  200
+http://ss.bdimg.com/static/superman/font/iconfont-5f3e71d33e.eot?#iefix  |  38748  |  200
+http://ss.bdimg.com/static/superman/font/iconfont-3585cbf68d.woff2  |  18936  |  200
+http://ss.bdimg.com/static/superman/font/iconfont-37ce8725be.woff  |  22060  |  200
+http://ss.bdimg.com/static/superman/font/iconfont-1965a6bc45.ttf  |  38580  |  200
+http://ss.bdimg.com/static/superman/font/iconfont-2f199a6ba1.svg#iconfont  |  132563  |  200
+https://www.hao123.com?src=from_pc  |  485528  |  200
+http://music.taihe.com  |  103565  |  200
+http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=11000002000001  |  13882  |  200
+http://ss.bdimg.com/  |  19825  |  200
+https://beian.miit.gov.cn  |  691  |  521
+http://ss1.bdstatic.com  |  超时
+http://dss1.bdstatic.com  |  超时
+http://dss0.bdstatic.com  |  超时

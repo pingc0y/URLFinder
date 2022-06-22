@@ -1,0 +1,62 @@
+2 js to 157.148.32.204
+http://157.148.32.204/assets/js/chunk-vendors.2eb9a2cb.js  |  200
+http://157.148.32.204/assets/js/app.56fc3aa2.js  |  200
+
+0 js to other
+
+
+17 url to 157.148.32.204
+http://157.148.32.204/login  |  200
+http://157.148.32.204/index  |  200
+http://157.148.32.204/report  |  200
+http://157.148.32.204/404  |  200
+http://157.148.32.204/index/guide  |  200
+http://157.148.32.204/report/report-add  |  200
+http://157.148.32.204/log  |  200
+http://157.148.32.204/account  |  200
+http://157.148.32.204/dist/  |  200
+http://157.148.32.204/a/b  |  200
+http://157.148.32.204/a/i  |  200
+http://157.148.32.204/script  |  200
+http://157.148.32.204/./  |  200
+http://157.148.32.204/v1/platform/member/list-right  |  401
+http://157.148.32.204/v1/account/CheckToken  |  404
+http://157.148.32.204/v1/account/login  |  404
+http://157.148.32.204/v1/partner/common/cover_picture  |  404
+
+4 url to other
+.204/report  |  200
+http://157.148.32.204/404  |  200
+http://157.148.32.204/log  |  200
+http://157.148.32.204/account  |  200
+http://157.148.32.204/dist/  |  200
+http://157.148.32.204/a/b  |  200
+http://157.148.32.204/a/i  |  200
+http://157.148.32.204/script  |  200
+http://157.148.32.204/./  |  200
+http://157.148.32.204/v1/platform/member/list-right  |  401
+http://157.148.32.204/v1/partner/report/modify  |  404
+http://157.148.32.204/v1/partner/common/cover_picture  |  404
+http://157.148.32.204/v1/partner/report/search_suggest  |  404
+http://157.148.32.204/v1/partner/oplog/describe  |  404
+http://157.148.32.204/v1/partner/report/del  |  404
+http://157.148.32.204/v1/partner/enroll_platform/login  |  404
+http://157.148.32.204/v1/partner/organ/check  |  404
+http://157.148.32.204/v1/partner/organ/add  |  404
+http://157.148.32.204/v1/partner/organ/bind  |  404
+http://157.148.32.204/v1/partner/sub_account/list  |  404
+http://157.148.32.204/v1/account/CheckToken  |  404
+http://157.148.32.204/v1/partner/organ/list  |  404
+http://157.148.32.204/v1/partner/sub_account/del  |  404
+http://157.148.32.204/v1/partner/sub_account/update  |  404
+http://157.148.32.204/v1/partner/sub_account/add  |  404
+http://157.148.32.204/v2/account/phone_login/submit_phone  |  404
+http://157.148.32.204/v2/account/phone_login/submit  |  404
+http://157.148.32.204/v1/account/login  |  404
+http://157.148.32.204/v1/partner/report/add  |  404
+http://157.148.32.204/v1/partner/describe-client-id  |  404
+http://157.148.32.204/oauth/authorize?scope=get_username&response_type=code&disable-sub-account-switch=1&disable-country=0&state=12&nonce=345&appid=  |  404
+http://157.148.32.204/v1/account/GetToken  |  404
+http://157.148.32.204/v1/partner/report/list  |  404
+
+4 url to other

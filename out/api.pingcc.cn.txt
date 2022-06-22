@@ -1,0 +1,16 @@
+5 js to pingcc.cn
+http://api.pingcc.cn/static/index/js/b.js  |  404  |  109
+http://api.pingcc.cn/static/index/js/c.js  |  404  |  109
+http://api.pingcc.cn/static/index/js/jquery.min.js  |  200  |  97168
+http://api.pingcc.cn/static/index/js/swiper.min.js  |  200  |  118223
+http://api.pingcc.cn/static/index/js/index.js  |  200  |  297
+
+0 js to other
+
+
+1 url to pingcc.cn
+http://api.pingcc.cn/a  |  200  |  3489
+
+2 url to other
+http://bt2.zjlonline.cn/#/video/contents  |  200  |  523
+http://bt2.zjlonline.cn/#/novel/content  |  200  |  523

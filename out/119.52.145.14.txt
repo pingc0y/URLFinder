@@ -1,0 +1,24 @@
+10 js to 119.52.145.14
+http://119.52.145.14:13720/js/jquery.min.js  |  200
+http://119.52.145.14:13720/js/bootstrap.min.js  |  200
+http://119.52.145.14:13720/js/content.js  |  200
+http://119.52.145.14:13720/js/ajax-util.js  |  200
+http://119.52.145.14:13720/js/plugins/validate/jquery.validate.min.js  |  200
+http://119.52.145.14:13720/js/plugins/validate/messages_zh.min.js  |  200
+http://119.52.145.14:13720/js/plugins/layer/layer.min.js  |  200
+http://119.52.145.14:13720/js/md5.js  |  200
+http://119.52.145.14:13720/js/crypto-js.js  |  200
+http://119.52.145.14:13720/js/jquery.cookie.js  |  200
+
+0 js to other
+
+
+6 url to 119.52.145.14
+http://119.52.145.14:13720/logining  |  200
+http://119.52.145.14:13720/index  |  200
+http://119.52.145.14:13720/api/util/token  |  200
+http://119.52.145.14:13720/api/util/icode?t=  |  200
+http://119.52.145.14:13720/login  |  200
+http://119.52.145.14:13720/common/sysFile/upload  |  200
+
+0 url to other

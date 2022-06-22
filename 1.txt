@@ -1,0 +1,2 @@
+http://api.pingcc.cn
+http://www.pingcc.cn
