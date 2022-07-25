@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/fatih/color"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -49,13 +50,13 @@ func init() {
 	flag.StringVar(&c, "c", "", "set cookie")
 	flag.StringVar(&f, "f", "", "set urlFile")
 	flag.StringVar(&a, "a", "", "set user-agent")
-	flag.IntVar(&m, "m", 1, "set mode \n 1  normal \n 2  thorough \n 3  fuzz(in development)\n")
+	flag.IntVar(&m, "m", 1, "set mode \n 1  normal \n 2  thorough \n")
 
 	// 改变默认的 Usage
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/7/6  by pingc
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/7/25  by pingc
 Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status]
 
 Options:
@@ -65,9 +66,9 @@ Options:
 
 func main() {
 	flag.Parse()
-
 	if h {
 		flag.Usage()
+		return
 	}
 	if u == "" && f == "" {
 		flag.Usage()
@@ -136,6 +137,8 @@ func main() {
 
 	wg.Add(1)
 	go spider(u, true)
+	fmt.Println("         __   __   ___ _           _           \n /\\ /\\  /__\\ / /  / __(_)_ __   __| | ___ _ __ \n/ / \\ \\/ \\/// /  / _\\ | | '_ \\ / _` |/ _ \\ '__|\n\\ \\_/ / _  \\ /___ /   | | | | | (_| |  __/ |   \n \\___/\\/ \\_\\____\\/    |_|_| |_|\\__,_|\\___|_|   \n                                               ")
+
 	fmt.Println("Start Spider URL: " + u)
 	wg.Wait()
 	fmt.Println("Spider OK")
@@ -200,15 +203,15 @@ func outFile() {
 	resultJs = SelectSort(resultJs)
 	//抓取的域名优先排序
 	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
-	writer.WriteString(strconv.Itoa(len(resultJsHost)) + " js to " + getHost(u) + "\n")
+	writer.WriteString(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u) + "\n")
 	for _, j := range resultJsHost {
-		if strings.Contains(j, " | ") || !s {
+		if strings.Contains(j, "  |  ") || !s {
 			writer.WriteString(j + "\n")
 		}
 	}
-	writer.WriteString("\n" + strconv.Itoa(len(resultJsOther)) + " js to other\n")
+	writer.WriteString("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other\n")
 	for _, j := range resultJsOther {
-		if strings.Contains(j, " | ") || !s {
+		if strings.Contains(j, "  |  ") || !s {
 			writer.WriteString(j + "\n")
 		}
 	}
@@ -217,22 +220,22 @@ func outFile() {
 	//抓取的域名优先排序
 	resultUrl = SelectSort(resultUrl)
 	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
-	writer.WriteString(strconv.Itoa(len(resultUrlHost)) + " url to " + getHost(u) + "\n")
+	writer.WriteString(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u) + "\n")
 	for _, u := range resultUrlHost {
-		if strings.Contains(u, " | ") || !s {
+		if strings.Contains(u, "  |  ") || !s {
 			writer.WriteString(u + "\n")
 		}
 	}
-	writer.WriteString("\n" + strconv.Itoa(len(resultUrlOther)) + " url to other\n")
+	writer.WriteString("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other\n")
 	for _, u := range resultUrlOther {
-		if strings.Contains(u, " | ") || !s {
+		if strings.Contains(u, "  |  ") || !s {
 			writer.WriteString(u + "\n")
 		}
 	}
 
 	writer.Flush() //内容是先写到缓存对，所以需要调用flush将缓存对数据真正写到文件中
-	fmt.Println(strconv.Itoa(len(resultJs))+" to js --> ", "out\\"+host+".txt")
-	fmt.Println(strconv.Itoa(len(resultUrl))+" to url --> ", "out\\"+host+".txt\n")
+	fmt.Println(strconv.Itoa(len(resultJs))+"JS + "+strconv.Itoa(len(resultUrl))+"URL --> ", "out\\"+host+".txt")
+
 	return
 }
 
@@ -251,16 +254,42 @@ func print() {
 	resultJs = SelectSort(resultJs)
 	//抓取的域名优先排序
 	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
-	fmt.Println(strconv.Itoa(len(resultJsHost)) + " js to " + getHost(u))
+	fmt.Println(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u))
 	for _, u := range resultJsHost {
-		if strings.Contains(u, " | ") || !s {
-			fmt.Println(u)
+		if strings.Contains(u, "  |  ") || !s {
+			split := strings.Split(u, "  |  ")
+			if len(split) == 3 {
+				if strings.HasPrefix(split[2], "2") {
+					color.Green(u)
+				} else if strings.HasPrefix(split[2], "3") {
+					color.Yellow(u)
+				} else {
+					color.Red(u)
+				}
+			} else if len(split) == 2 {
+				color.Red(u)
+			} else if !s {
+				fmt.Println(u)
+			}
 		}
 	}
-	fmt.Println("\n" + strconv.Itoa(len(resultJsOther)) + " js to other")
+	fmt.Println("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other")
 	for _, u := range resultJsOther {
-		if strings.Contains(u, " | ") || !s {
-			fmt.Println(u)
+		if strings.Contains(u, "  |  ") || !s {
+			split := strings.Split(u, "  |  ")
+			if len(split) == 3 {
+				if strings.HasPrefix(split[2], "2") {
+					color.Green(u)
+				} else if strings.HasPrefix(split[2], "3") {
+					color.Yellow(u)
+				} else {
+					color.Red(u)
+				}
+			} else if len(split) == 2 {
+				color.Red(u)
+			} else if !s {
+				fmt.Println(u)
+			}
 		}
 	}
 
@@ -269,16 +298,42 @@ func print() {
 	resultUrl = SelectSort(resultUrl)
 	//抓取的域名优先排序
 	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
-	fmt.Println(strconv.Itoa(len(resultUrlHost)) + " url to " + getHost(u))
+	fmt.Println(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u))
 	for _, u := range resultUrlHost {
-		if strings.Contains(u, " | ") || !s {
-			fmt.Println(u)
+		if strings.Contains(u, "  |  ") || !s {
+			split := strings.Split(u, "  |  ")
+			if len(split) == 3 {
+				if strings.HasPrefix(split[2], "2") {
+					color.Green(u)
+				} else if strings.HasPrefix(split[2], "3") {
+					color.Yellow(u)
+				} else {
+					color.Red(u)
+				}
+			} else if len(split) == 2 {
+				color.Red(u)
+			} else if !s {
+				fmt.Println(u)
+			}
 		}
 	}
-	fmt.Println("\n" + strconv.Itoa(len(resultUrlOther)) + " url to other")
+	fmt.Println("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other")
 	for _, u := range resultUrlOther {
-		if strings.Contains(u, " | ") || !s {
-			fmt.Println(u + "a")
+		if strings.Contains(u, "  |  ") || !s {
+			split := strings.Split(u, "  |  ")
+			if len(split) == 3 {
+				if strings.HasPrefix(split[2], "2") {
+					color.Green(u)
+				} else if strings.HasPrefix(split[2], "3") {
+					color.Yellow(u)
+				} else {
+					color.Red(u)
+				}
+			} else if len(split) == 2 {
+				color.Red(u)
+			} else if !s {
+				fmt.Println(u)
+			}
 		}
 	}
 }
@@ -348,10 +403,10 @@ func jsFind(cont, host, scheme, path string, is bool) {
 	}
 	//js匹配正则
 	res := []string{
-		"http[^\\s,^',^’,^\",^>,^<,^:,^(,^),^\\[]{1,250}?[.]js",
-		"[\",']/[^\\s,^',^’,^\",^>,^<,^:,^(,^),^\\[]1,250}?[.]js",
-		"=[^\\s,^',^’,^\",^>,^<,^:,^(,^),^\\[]{1,250}?[.]js", "" +
-			"=[\",'][^\\s,^',^’,^\",^>,^<,^:,^(,^),^\\[]{1,250}?[.]js",
+		"http[^\\s,^',^’,^\",^>,^<,^;,^(,^),^\\[]{2,250}?[.]js",
+		"[\",']/[^\\s,^',^’,^\",^>,^<,^:,^;,\\\\*,^(,^),^\\[]2,250}?[.]js",
+		"=[^\\s,^',^’,^\",^>,^<,^;,\\\\*,^(,^),^\\[]{2,250}?[.]js",
+		"=[\",'][^\\s,^',^’,^\",^>,^<,^;,\\\\*,^(,^),^\\[]{2,250}?[.]js",
 	}
 	host = scheme + "://" + host
 	for _, re := range res {
@@ -654,12 +709,13 @@ func getEndUrl(url string) bool {
 func SelectSort(arr []string) []string {
 	length := len(arr)
 	var sort []int
-	for i, v := range arr {
-		if strings.Contains(v, "|") {
-			if strings.Contains(v, "超时") {
+	for _, v := range arr {
+		if strings.Contains(v, "  |  ") {
+			if strings.Contains(v, "|  超时") {
 				sort = append(sort, 999)
 			} else {
-				in, _ := strconv.Atoi(arr[i][len(arr[i])-3:])
+				s := strings.Split(v, "  |  ")
+				in, _ := strconv.Atoi(s[2])
 				sort = append(sort, in)
 			}
 		} else {
@@ -688,33 +744,22 @@ func SelectSort(arr []string) []string {
 //对结果进行状态码与URL排序排序
 func urlDispose(arr []string, url, host string) ([]string, []string) {
 	var urls []string
+	var urlts []string
 	var other []string
-	var sort []int
 	for _, v := range arr {
 		if strings.Contains(v, url) {
-			sort = append(sort, 1)
 			urls = append(urls, v)
 		} else {
 			if strings.Contains(v, host) {
-				sort = append(sort, 2)
-				urls = append(urls, v)
+				urlts = append(urls, v)
 			} else {
 				other = append(other, v)
 			}
 		}
 
 	}
-	for i := 0; i < len(urls)-1; i++ { //只剩一个元素不需要索引
-		min := i                             //标记索引
-		for j := i + 1; j < len(urls); j++ { //每次选出一个极小值
-			if sort[min] > sort[j] {
-				min = j //保存极小值的索引
-			}
-		}
-		if i != min {
-			sort[i], sort[min] = sort[min], sort[i] //数据交换
-			urls[i], urls[min] = urls[min], urls[i] //数据交换
-		}
+	for _, v := range urlts {
+		urls = append(urls, v)
 	}
 	return RemoveRepeatElement(urls), RemoveRepeatElement(other)
 }
@@ -762,18 +807,18 @@ func getHost(u string) string {
 	re2 := regexp.MustCompile("[^.]*?\\.[^.,^:]*")
 	host2 := re2.FindAllString(host, -1)
 	re3 := regexp.MustCompile("(([01]?[0-9]{1,3}|2[0-4][0-9]|25[0-5])\\.){3}([01]?[0-9]{1,3}|2[0-4][0-9]|25[0-5])")
-	hostIp := re3.FindAllString(u, 1)
+	hostIp := re3.FindAllString(u, -1)
 	if len(hostIp) == 0 {
 		if len(host2) == 1 {
 			host = host2[0]
 		} else {
 			re3 := regexp.MustCompile("\\.[^.]*?\\.[^.,^:]*")
 			var ho string
-			hos := re3.FindAllString(host, 1)
+			hos := re3.FindAllString(host, -1)
 			if len(hos) == 0 {
 				ho = u
 			} else {
-				ho = hos[0]
+				ho = hos[len(hos)-1]
 			}
 			host = strings.Replace(ho, ".", "", 1)
 		}
