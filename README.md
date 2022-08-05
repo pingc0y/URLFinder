@@ -34,19 +34,19 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 ## 使用教程
 单url时使用  
 ```
-URLFinder.exe -u http://www.baidu.com -s 0 -m 2
+URLFinder.exe -u http://www.baidu.com -s all -m 2
 
 URLFinder.exe -u http://www.baidu.com -s 200,403 -m 2
 ```
 批量url时使用  
 ```
-URLFinder.exe -f url.txt -o -s 0 -m 2 
+URLFinder.exe -f url.txt -o -s all -m 2 
 ```
 参数：  
 ```
 -u  目标URL  
 -a  自定义user-agent请求头  
--s  显示指定状态码，0为显示全部  
+-s  显示指定状态码，all为显示全部  
 -m  模式：  1  正常抓取（默认），  2  深入抓取  
 -c  添加cookie  
 -f  批量url抓取  

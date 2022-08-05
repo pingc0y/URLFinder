@@ -687,7 +687,7 @@ func jsState(u string, i int) {
 	}
 
 	code := response.StatusCode
-	if strings.Contains(s, strconv.Itoa(code)) || s == "0" {
+	if strings.Contains(s, strconv.Itoa(code)) || s == "all" {
 		var length int
 		dataBytes, err := ioutil.ReadAll(response.Body)
 		if err != nil {
@@ -723,7 +723,7 @@ func urlState(u string, i int) {
 	//处理返回结果
 	response, err := client.Do(reqest)
 	if err != nil {
-		if strings.Contains(err.Error(), "Client.Timeout") && s == "0" {
+		if strings.Contains(err.Error(), "Client.Timeout") && s == "all" {
 			resultUrl[i] = u + "  |  超时"
 		} else {
 			resultUrl[i] = ""
@@ -732,7 +732,7 @@ func urlState(u string, i int) {
 	}
 
 	code := response.StatusCode
-	if strings.Contains(s, strconv.Itoa(code)) || s == "0" {
+	if strings.Contains(s, strconv.Itoa(code)) || s == "all" {
 		var length int
 		dataBytes, err := ioutil.ReadAll(response.Body)
 		if err != nil {
