@@ -34,17 +34,19 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 ## 使用教程
 单url时使用  
 ```
-URLFinder.exe -u http://www.baidu.com -s -m 2
+URLFinder.exe -u http://www.baidu.com -s 0 -m 2
+
+URLFinder.exe -u http://www.baidu.com -s 200,403 -m 2
 ```
 批量url时使用  
 ```
-URLFinder.exe -f url.txt -o -s -m 2 
+URLFinder.exe -f url.txt -o -s 0 -m 2 
 ```
 参数：  
 ```
 -u  目标URL  
 -a  自定义user-agent请求头  
--s  显示URL状态码与响应内容大小  
+-s  显示指定状态码，0为显示全部  
 -m  模式：  1  正常抓取（默认），  2  深入抓取  
 -c  添加cookie  
 -f  批量url抓取  
@@ -53,8 +55,14 @@ URLFinder.exe -f url.txt -o -s -m 2
 
 
 ## 更新说明  
+
+2022/8/5  
+增加状态码过滤  
+状态码验证显示进度  
+修复域名带端口输出本地错误问题  
+
 2022/7/25   
-优化js规则
+优化js规则  
 优化排序  
 根据状态码显示彩色字体  
 

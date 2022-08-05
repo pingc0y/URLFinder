@@ -22,7 +22,7 @@ var (
 	lock sync.Mutex
 	wg   sync.WaitGroup
 )
-
+var progress int = 1
 var (
 	resultJs  []string
 	resultUrl []string
@@ -32,7 +32,7 @@ var (
 var (
 	h bool
 	o bool
-	s bool
+	s string
 	u string
 	c string
 	a string
@@ -44,19 +44,19 @@ var ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.htm
 func init() {
 	flag.BoolVar(&h, "h", false, "this help")
 	flag.BoolVar(&o, "o", false, "outFile")
-	flag.BoolVar(&s, "s", false, "set status")
 
 	flag.StringVar(&u, "u", "", "set url")
 	flag.StringVar(&c, "c", "", "set cookie")
 	flag.StringVar(&f, "f", "", "set urlFile")
 	flag.StringVar(&a, "a", "", "set user-agent")
+	flag.StringVar(&s, "s", "", "set status")
 	flag.IntVar(&m, "m", 1, "set mode \n 1  normal \n 2  thorough \n")
 
 	// 改变默认的 Usage
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/7/25  by pingc
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/8/5  by pingc
 Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status]
 
 Options:
@@ -98,10 +98,11 @@ func main() {
 			wg.Add(1)
 			go spider(u, true)
 			fmt.Println("Start Spider URL: " + u)
+			fmt.Println("Start Spider...")
 			wg.Wait()
 			fmt.Println("Spider OK")
 
-			if s {
+			if s != "" {
 				fmt.Println("Start Validate...")
 			}
 
@@ -119,6 +120,7 @@ func main() {
 				go urlState(s, i)
 			}
 			wg.Wait()
+			fmt.Println("\rValidate OK   ")
 
 			//打印还是输出
 			if o {
@@ -140,10 +142,11 @@ func main() {
 	fmt.Println("         __   __   ___ _           _           \n /\\ /\\  /__\\ / /  / __(_)_ __   __| | ___ _ __ \n/ / \\ \\/ \\/// /  / _\\ | | '_ \\ / _` |/ _ \\ '__|\n\\ \\_/ / _  \\ /___ /   | | | | | (_| |  __/ |   \n \\___/\\/ \\_\\____\\/    |_|_| |_|\\__,_|\\___|_|   \n                                               ")
 
 	fmt.Println("Start Spider URL: " + u)
+	fmt.Println("Start Spider...")
 	wg.Wait()
 	fmt.Println("Spider OK")
 
-	if s {
+	if s != "" {
 		fmt.Println("Start Validate...")
 	}
 
@@ -161,6 +164,7 @@ func main() {
 		go urlState(s, i)
 	}
 	wg.Wait()
+	fmt.Println("\rValidate OK   ")
 
 	//打印还是输出
 	if o {
@@ -169,6 +173,12 @@ func main() {
 		print()
 	}
 
+}
+
+func printProgress() {
+	num := len(resultJs) + len(resultUrl)
+	fmt.Printf("\rValidate %.0f%%", float64(progress+1)/float64(num+1)*100)
+	progress++
 }
 
 //输出
@@ -189,8 +199,19 @@ func outFile() {
 		host = hostIp[0]
 	}
 	CreateDir("out")
-	//输出到文件
 
+	ulen := strconv.Itoa(len(resultUrl[0]))
+	jlen := strconv.Itoa(len(resultJs[0]))
+	//抓取的域名优先排序
+	resultJs = SelectSort(resultJs)
+	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
+	//抓取的域名优先排序
+	resultUrl = SelectSort(resultUrl)
+	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
+	//输出到文件
+	if strings.Contains(host, ":") {
+		host = strings.Replace(host, ":", "：", -1)
+	}
 	file, err := os.OpenFile("out\\"+host+".txt", os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		fmt.Println("open file error:", err)
@@ -199,36 +220,86 @@ func outFile() {
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-
-	resultJs = SelectSort(resultJs)
-	//抓取的域名优先排序
-	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
 	writer.WriteString(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u) + "\n")
 	for _, j := range resultJsHost {
-		if strings.Contains(j, "  |  ") || !s {
+		if strings.Contains(j, "  |  ") || (s == "") {
+			split := strings.Split(j, "  |  ")
+			if len(split) == 3 {
+				if strings.HasPrefix(split[2], "2") {
+					j = fmt.Sprintf("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				} else if strings.HasPrefix(split[2], "3") {
+					j = fmt.Sprintf("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				} else {
+					j = fmt.Sprintf("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				}
+
+			} else if len(split) == 2 {
+				j = fmt.Sprintf("%-"+jlen+"s [status: %s, size: 0]", split[0], split[1])
+			} else if s == "" {
+				j = fmt.Sprintf(j)
+			}
 			writer.WriteString(j + "\n")
 		}
 	}
 	writer.WriteString("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other\n")
 	for _, j := range resultJsOther {
-		if strings.Contains(j, "  |  ") || !s {
+		if strings.Contains(j, "  |  ") || (s == "") {
+			split := strings.Split(j, "  |  ")
+			if len(split) == 3 {
+				if strings.HasPrefix(split[2], "2") {
+					j = fmt.Sprintf("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				} else if strings.HasPrefix(split[2], "3") {
+					j = fmt.Sprintf("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				} else {
+					j = fmt.Sprintf("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				}
+			} else if len(split) == 2 {
+				j = fmt.Sprintf("%-"+jlen+"s [status: %s, size: 0]", split[0], split[1])
+			} else if s == "" {
+				j = fmt.Sprintf(j)
+			}
 			writer.WriteString(j + "\n")
 		}
 	}
 
 	writer.WriteString("\n\n")
-	//抓取的域名优先排序
-	resultUrl = SelectSort(resultUrl)
-	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
 	writer.WriteString(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u) + "\n")
 	for _, u := range resultUrlHost {
-		if strings.Contains(u, "  |  ") || !s {
+		if strings.Contains(u, "  |  ") || (s == "") {
+			split := strings.Split(u, "  |  ")
+			if len(split) == 3 {
+				if strings.HasPrefix(split[2], "2") {
+					u = fmt.Sprintf("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				} else if strings.HasPrefix(split[2], "3") {
+					u = fmt.Sprintf("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				} else {
+					u = fmt.Sprintf("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				}
+			} else if len(split) == 2 {
+				u = fmt.Sprintf("%-"+ulen+"s [status: %s, size: 0]", split[0], split[1])
+			} else if s == "" {
+				u = fmt.Sprintf(u)
+			}
 			writer.WriteString(u + "\n")
 		}
 	}
 	writer.WriteString("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other\n")
 	for _, u := range resultUrlOther {
-		if strings.Contains(u, "  |  ") || !s {
+		if strings.Contains(u, "  |  ") || (s == "") {
+			split := strings.Split(u, "  |  ")
+			if len(split) == 3 {
+				if strings.HasPrefix(split[2], "2") {
+					u = fmt.Sprintf("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				} else if strings.HasPrefix(split[2], "3") {
+					u = fmt.Sprintf("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				} else {
+					u = fmt.Sprintf("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
+				}
+			} else if len(split) == 2 {
+				u = fmt.Sprintf("%-"+ulen+"s [status: %s, size: 0]", split[0], split[1])
+			} else if s == "" {
+				u = fmt.Sprintf(u)
+			}
 			writer.WriteString(u + "\n")
 		}
 	}
@@ -254,41 +325,50 @@ func print() {
 	resultJs = SelectSort(resultJs)
 	//抓取的域名优先排序
 	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
+
+	ulen := ""
+	if len(resultUrl) != 0 {
+		ulen = strconv.Itoa(len(resultUrl[0]))
+	}
+	jlen := ""
+	if len(resultJs) != 0 {
+		jlen = strconv.Itoa(len(resultJs[0]))
+	}
 	fmt.Println(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u))
-	for _, u := range resultJsHost {
-		if strings.Contains(u, "  |  ") || !s {
-			split := strings.Split(u, "  |  ")
+	for _, j := range resultJsHost {
+		if strings.Contains(j, "  |  ") || (s == "") {
+			split := strings.Split(j, "  |  ")
 			if len(split) == 3 {
 				if strings.HasPrefix(split[2], "2") {
-					color.Green(u)
+					color.Green("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				} else if strings.HasPrefix(split[2], "3") {
-					color.Yellow(u)
+					color.Yellow("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				} else {
-					color.Red(u)
+					color.Red("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				}
 			} else if len(split) == 2 {
-				color.Red(u)
-			} else if !s {
-				fmt.Println(u)
+				color.Red("%-"+jlen+"s [status: %s, size: 0]", split[0], split[1])
+			} else if s == "" {
+				fmt.Println(j)
 			}
 		}
 	}
 	fmt.Println("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other")
-	for _, u := range resultJsOther {
-		if strings.Contains(u, "  |  ") || !s {
-			split := strings.Split(u, "  |  ")
+	for _, j := range resultJsOther {
+		if strings.Contains(j, "  |  ") || (s == "") {
+			split := strings.Split(j, "  |  ")
 			if len(split) == 3 {
 				if strings.HasPrefix(split[2], "2") {
-					color.Green(u)
+					color.Green("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				} else if strings.HasPrefix(split[2], "3") {
-					color.Yellow(u)
+					color.Yellow("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				} else {
-					color.Red(u)
+					color.Red("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				}
 			} else if len(split) == 2 {
-				color.Red(u)
-			} else if !s {
-				fmt.Println(u)
+				color.Red("%-"+jlen+"s [status: %s, size: 0]", split[0], split[1])
+			} else if s == "" {
+				fmt.Println(j)
 			}
 		}
 	}
@@ -300,38 +380,38 @@ func print() {
 	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
 	fmt.Println(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u))
 	for _, u := range resultUrlHost {
-		if strings.Contains(u, "  |  ") || !s {
+		if strings.Contains(u, "  |  ") || (s == "") {
 			split := strings.Split(u, "  |  ")
 			if len(split) == 3 {
 				if strings.HasPrefix(split[2], "2") {
-					color.Green(u)
+					color.Green("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				} else if strings.HasPrefix(split[2], "3") {
-					color.Yellow(u)
+					color.Yellow("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				} else {
-					color.Red(u)
+					color.Red("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				}
 			} else if len(split) == 2 {
-				color.Red(u)
-			} else if !s {
+				color.Red("%-"+ulen+"s [status: %s, size: 0]", split[0], split[1])
+			} else if s == "" {
 				fmt.Println(u)
 			}
 		}
 	}
 	fmt.Println("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other")
 	for _, u := range resultUrlOther {
-		if strings.Contains(u, "  |  ") || !s {
+		if strings.Contains(u, "  |  ") || (s == "") {
 			split := strings.Split(u, "  |  ")
 			if len(split) == 3 {
 				if strings.HasPrefix(split[2], "2") {
-					color.Green(u)
+					color.Green("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				} else if strings.HasPrefix(split[2], "3") {
-					color.Yellow(u)
+					color.Yellow("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				} else {
-					color.Red(u)
+					color.Red("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
 				}
 			} else if len(split) == 2 {
-				color.Red(u)
-			} else if !s {
+				color.Red("%-"+ulen+"s [status: %s, size: 0]", split[0], split[1])
+			} else if s == "" {
 				fmt.Println(u)
 			}
 		}
@@ -351,7 +431,7 @@ func spider(ur string, is bool) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	client := &http.Client{Timeout: 15 * time.Second, Transport: tr}
+	client := &http.Client{Timeout: 3 * time.Second, Transport: tr}
 	reqest, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return
@@ -374,7 +454,6 @@ func spider(ur string, is bool) {
 	// 去读数据内容为 bytes
 	dataBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		fmt.Println(err)
 		return
 	}
 	path := response.Request.URL.Path
@@ -580,7 +659,8 @@ func urlFilter(str [][]string) [][]string {
 //检测js访问状态码
 func jsState(u string, i int) {
 	defer wg.Done()
-	if !s {
+	defer printProgress()
+	if s == "" {
 		resultJs[i] = u
 		return
 	}
@@ -598,7 +678,7 @@ func jsState(u string, i int) {
 	//处理返回结果
 	response, err := client.Do(reqest)
 	if err != nil {
-		if strings.Contains(err.Error(), "Client.Timeout") {
+		if strings.Contains(err.Error(), "Client.Timeout") && s == "" {
 			resultJs[i] = u + "  |  超时"
 		} else {
 			resultJs[i] = ""
@@ -607,27 +687,32 @@ func jsState(u string, i int) {
 	}
 
 	code := response.StatusCode
-	var length int
-	dataBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		length = 0
+	if strings.Contains(s, strconv.Itoa(code)) || s == "0" {
+		var length int
+		dataBytes, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			length = 0
+		} else {
+			length = len(dataBytes)
+		}
+		resultJs[i] = u + "  |  " + strconv.Itoa(length) + "  |  " + strconv.Itoa(code)
 	} else {
-		length = len(dataBytes)
+		resultUrl[i] = ""
 	}
-	resultJs[i] = u + "  |  " + strconv.Itoa(length) + "  |  " + strconv.Itoa(code)
 }
 
 //检测url访问状态码
 func urlState(u string, i int) {
 	defer wg.Done()
-	if !s {
+	defer printProgress()
+	if s == "" {
 		resultUrl[i] = u
 		return
 	}
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	client := &http.Client{Timeout: 8 * time.Second, Transport: tr}
+	client := &http.Client{Timeout: 3 * time.Second, Transport: tr}
 	reqest, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return
@@ -638,7 +723,7 @@ func urlState(u string, i int) {
 	//处理返回结果
 	response, err := client.Do(reqest)
 	if err != nil {
-		if strings.Contains(err.Error(), "Client.Timeout") {
+		if strings.Contains(err.Error(), "Client.Timeout") && s == "0" {
 			resultUrl[i] = u + "  |  超时"
 		} else {
 			resultUrl[i] = ""
@@ -647,14 +732,18 @@ func urlState(u string, i int) {
 	}
 
 	code := response.StatusCode
-	var length int
-	dataBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		length = 0
+	if strings.Contains(s, strconv.Itoa(code)) || s == "0" {
+		var length int
+		dataBytes, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			length = 0
+		} else {
+			length = len(dataBytes)
+		}
+		resultUrl[i] = u + "  |  " + strconv.Itoa(length) + "  |  " + strconv.Itoa(code)
 	} else {
-		length = len(dataBytes)
+		resultUrl[i] = ""
 	}
-	resultUrl[i] = u + "  |  " + strconv.Itoa(length) + "  |  " + strconv.Itoa(code)
 }
 
 func appendJs(url string) {
@@ -815,6 +904,7 @@ func getHost(u string) string {
 			re3 := regexp.MustCompile("\\.[^.]*?\\.[^.,^:]*")
 			var ho string
 			hos := re3.FindAllString(host, -1)
+
 			if len(hos) == 0 {
 				ho = u
 			} else {
