@@ -56,7 +56,7 @@ func init() {
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/8/5  by pingc
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/8/19  by pingc
 Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status]
 
 Options:
@@ -98,7 +98,6 @@ func main() {
 			wg.Add(1)
 			go spider(u, true)
 			fmt.Println("Start Spider URL: " + u)
-			fmt.Println("Start Spider...")
 			wg.Wait()
 			fmt.Println("Spider OK")
 
@@ -431,7 +430,7 @@ func spider(ur string, is bool) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	client := &http.Client{Timeout: 3 * time.Second, Transport: tr}
+	client := &http.Client{Timeout: 10 * time.Second, Transport: tr}
 	reqest, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return
@@ -667,7 +666,7 @@ func jsState(u string, i int) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	client := &http.Client{Timeout: 5 * time.Second, Transport: tr}
+	client := &http.Client{Timeout: 15 * time.Second, Transport: tr}
 	reqest, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return
@@ -712,7 +711,7 @@ func urlState(u string, i int) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	client := &http.Client{Timeout: 3 * time.Second, Transport: tr}
+	client := &http.Client{Timeout: 15 * time.Second, Transport: tr}
 	reqest, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return

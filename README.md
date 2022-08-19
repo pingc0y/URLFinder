@@ -23,11 +23,10 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 
 ## 使用截图
 单url截图  
-[![jagnp9.png](https://s1.ax1x.com/2022/07/06/jagnp9.png)](https://imgtu.com/i/jagnp9)  
+[![jagnp9.png](https://s1.ax1x.com/2022/08/19/vr0G1P.png)](https://s1.ax1x.com/2022/08/19/vr0G1P.png)  
 批量url截图  
-[![jagZY4.png](https://s1.ax1x.com/2022/07/06/jagZY4.png)](https://imgtu.com/i/jagZY4)  
-[![jagefJ.png](https://s1.ax1x.com/2022/07/06/jagefJ.png)](https://imgtu.com/i/jagefJ)  
-
+[![vr0Bhn.png](https://s1.ax1x.com/2022/08/19/vr0Bhn.png)](https://imgse.com/i/vr0Bhn)
+[![vr0s10.md.png](https://s1.ax1x.com/2022/08/19/vr0s10.md.png)](https://imgse.com/i/vr0s10)
 
 
 
@@ -55,6 +54,8 @@ URLFinder.exe -f url.txt -o -s all -m 2
 
 
 ## 更新说明  
+2022/8/19  
+加长超时时间避免误判    
 
 2022/8/5  
 增加状态码过滤  
