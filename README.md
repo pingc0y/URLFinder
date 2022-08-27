@@ -15,7 +15,7 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 3.提取JS中的URL链接  
 4.提取到的链接可以显示状态码与响应内容大小  （带cookie操作时，可能会触发一些敏感功能，后台慎用）  
 5.支持提取批量URL  
-6.支持结果导出到txt文件
+6.支持结果导出到csv文件
 
 
 结果会优先显示输入的url顶级域名，其他域名不做区分显示在 other  
@@ -25,10 +25,8 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 单url截图  
 [![jagnp9.png](https://s1.ax1x.com/2022/08/19/vr0G1P.png)](https://s1.ax1x.com/2022/08/19/vr0G1P.png)  
 批量url截图  
-[![vr0Bhn.png](https://s1.ax1x.com/2022/08/19/vr0Bhn.png)](https://imgse.com/i/vr0Bhn)
-[![vr0s10.md.png](https://s1.ax1x.com/2022/08/19/vr0s10.md.png)](https://imgse.com/i/vr0s10)
-
-
+[![vRqHrd.png](https://s1.ax1x.com/2022/08/27/vRqHrd.png)](https://imgse.com/i/vRqHrd)  
+[![vRqbqA.png](https://s1.ax1x.com/2022/08/27/vRqbqA.png)](https://imgse.com/i/vRqbqA)  
 
 ## 使用教程
 单url时使用  
@@ -39,7 +37,7 @@ URLFinder.exe -u http://www.baidu.com -s 200,403 -m 2
 ```
 批量url时使用  
 ```
-URLFinder.exe -f url.txt -o -s all -m 2 
+URLFinder.exe -s all -m 2 -f url.txt -o d:/
 ```
 参数：  
 ```
@@ -48,12 +46,18 @@ URLFinder.exe -f url.txt -o -s all -m 2
 -s  显示指定状态码，all为显示全部  
 -m  模式：  1  正常抓取（默认），  2  深入抓取  
 -c  添加cookie  
--f  批量url抓取  
--o  结果导出到本地（会生成out文件夹）
+-f  批量url抓取，需指定url文本路径  
+-o  结果导出到csv文件，需指定导出文件目录（.代表当前目录）
 ```
 
 
 ## 更新说明  
+2022/8/27   
+-o 改为自定义文件目录  
+导出文件改为csv后缀，表格查看更方便  
+修复已知正则bug
+
+
 2022/8/19  
 加长超时时间避免误判    
 
