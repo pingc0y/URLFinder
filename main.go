@@ -21,6 +21,7 @@ import (
 var (
 	lock sync.Mutex
 	wg   sync.WaitGroup
+	mux  sync.Mutex
 )
 var progress int = 1
 var (
@@ -56,7 +57,7 @@ func init() {
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/8/27  by pingc
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/8/29  by pingc
 Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status]
 
 Options:
@@ -74,8 +75,14 @@ func main() {
 		flag.Usage()
 		return
 	}
+	fmt.Println("         __   __   ___ _           _           \n /\\ /\\  /__\\ / /  / __(_)_ __   __| | ___ _ __ \n/ / \\ \\/ \\/// /  / _\\ | | '_ \\ / _` |/ _ \\ '__|\n\\ \\_/ / _  \\ /___ /   | | | | | (_| |  __/ |   \n \\___/\\/ \\_\\____\\/    |_|_| |_|\\__,_|\\___|_|   \n                                               ")
 	if a != "" {
 		ua = a
+	}
+	if o != "" {
+		if !IsDir(o) {
+			return
+		}
 	}
 
 	if f != "" {
@@ -95,62 +102,36 @@ func main() {
 			//去掉字符串首尾空白字符，返回字符串
 			line := strings.TrimSpace(string(lineBytes))
 			u = line
-			wg.Add(1)
-			go spider(u, true)
-			fmt.Println("Start Spider URL: " + u)
-			wg.Wait()
-			fmt.Println("Spider OK")
-			if s != "" {
-				fmt.Println("Start Validate...")
-			}
-
-			resultUrl = RemoveRepeatElement(resultUrl)
-			resultJs = RemoveRepeatElement(resultJs)
-
-			//验证JS状态
-			for i, s := range resultJs {
-				wg.Add(1)
-				go jsState(s, i)
-			}
-			//验证URL状态
-			for i, s := range resultUrl {
-				wg.Add(1)
-				go urlState(s, i)
-			}
-			wg.Wait()
-			fmt.Println("\rValidate OK   ")
-
-			//打印还是输出
-			if len(o) > 0 {
-				outFile()
-			} else {
-				print()
-			}
+			start(u)
 
 			if err == io.EOF {
 				break
 			}
+			fmt.Println("----------------------------------------")
 
 		}
 		return
 	}
 
+	start(u)
+
+}
+
+func start(u string) {
 	wg.Add(1)
-	go spider(u, true)
-	fmt.Println("         __   __   ___ _           _           \n /\\ /\\  /__\\ / /  / __(_)_ __   __| | ___ _ __ \n/ / \\ \\/ \\/// /  / _\\ | | '_ \\ / _` |/ _ \\ '__|\n\\ \\_/ / _  \\ /___ /   | | | | | (_| |  __/ |   \n \\___/\\/ \\_\\____\\/    |_|_| |_|\\__,_|\\___|_|   \n                                               ")
-
 	fmt.Println("Start Spider URL: " + u)
+
+	go spider(u, true)
 	wg.Wait()
-
-	fmt.Println("Spider OK")
-
-	if s != "" {
-		fmt.Println("Start Validate...")
-	}
+	progress = 1
+	fmt.Println("\rSpider OK")
 
 	resultUrl = RemoveRepeatElement(resultUrl)
 	resultJs = RemoveRepeatElement(resultJs)
 
+	if s != "" {
+		fmt.Println("Start Validate...")
+	}
 	//验证JS状态
 	for i, s := range resultJs {
 		wg.Add(1)
@@ -170,7 +151,6 @@ func main() {
 	} else {
 		print()
 	}
-
 }
 
 func printProgress() {
@@ -179,7 +159,7 @@ func printProgress() {
 	progress++
 }
 
-//输出
+//导出
 func outFile() {
 	//获取域名
 	var host string
@@ -307,7 +287,7 @@ func outFile() {
 	return
 }
 
-//打印结果
+//打印
 func print() {
 	//获取域名
 	var host string
@@ -417,6 +397,10 @@ func print() {
 
 //蜘蛛抓取页面内容
 func spider(ur string, is bool) {
+	fmt.Printf("\rSpider %d", progress)
+	mux.Lock()
+	progress++
+	mux.Unlock()
 
 	//标记完成
 	defer wg.Done()
@@ -449,7 +433,6 @@ func spider(ur string, is bool) {
 	}
 
 	//提取url用于拼接其他url或js
-	// 去读数据内容为 bytes
 	dataBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return
@@ -623,6 +606,7 @@ func urlFilter(str [][]string) [][]string {
 		str[i][0] = strings.Replace(str[i][0], "%3A", ":", -1)
 		str[i][0] = strings.Replace(str[i][0], "%2F", "/", -1)
 
+		//过滤包含指定内容
 		fstr := []string{".js?", ".css?", ".jpeg?", ".jpg?", ".png?", ".gif?", "github.com", "www.w3.org", "example.com", "<", ">", "{", "}", "[", "]", "|", "^", ";", "/js/", "location.href", "javascript:void"}
 		for _, v := range fstr {
 			if strings.Contains(str[i][0], v) {
@@ -630,29 +614,19 @@ func urlFilter(str [][]string) [][]string {
 
 			}
 		}
-
 		match, _ := regexp.MatchString("[a-zA-Z]+|[0-9]+", str[i][0])
 		if !match {
 			str[i][0] = ""
 		}
+		//过滤指定后缀
+		zstr := []string{".js", ".css", ",", ".jpeg", ".jpg", ".png", ".gif", ".ico", ".svg"}
 
-		if strings.HasSuffix(str[i][0], ".js") {
-			str[i][0] = ""
-		} else if strings.HasSuffix(str[i][0], ",") {
-			str[i][0] = ""
-		} else if strings.HasSuffix(str[i][0], ".css") {
-			str[i][0] = ""
-		} else if strings.HasSuffix(str[i][0], ".jpeg") {
-			str[i][0] = ""
-		} else if strings.HasSuffix(str[i][0], ".jpg") {
-			str[i][0] = ""
-		} else if strings.HasSuffix(str[i][0], ".png") {
-			str[i][0] = ""
-		} else if strings.HasSuffix(str[i][0], ".gif") {
-			str[i][0] = ""
-		} else if strings.HasSuffix(str[i][0], ".ico") {
-			str[i][0] = ""
+		for _, v := range zstr {
+			if strings.HasSuffix(str[i][0], v) {
+				str[i][0] = ""
+			}
 		}
+
 	}
 	return str
 }
@@ -795,6 +769,16 @@ func getEndUrl(url string) bool {
 
 }
 
+// 判断所给路径是否为文件夹
+func IsDir(path string) bool {
+	s, err := os.Stat(path)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	return s.IsDir()
+}
+
 //对结果进行状态码排序
 func SelectSort(arr []string) []string {
 	length := len(arr)
@@ -864,23 +848,6 @@ func HasDir(path string) (bool, error) {
 		return false, nil
 	}
 	return false, _err
-}
-
-//创建文件夹
-func CreateDir(path string) {
-	_exist, _err := HasDir(path)
-	if _err != nil {
-		fmt.Printf("获取文件夹异常 -> %v\n", _err)
-		return
-	}
-	if _exist {
-	} else {
-		err := os.Mkdir(path, os.ModePerm)
-		if err != nil {
-			fmt.Printf("创建目录异常 -> %v\n", err)
-		} else {
-		}
-	}
 }
 
 //提取顶级域名
