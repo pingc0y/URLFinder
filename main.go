@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/fatih/color"
+	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -23,15 +24,22 @@ var (
 	wg   sync.WaitGroup
 	mux  sync.Mutex
 )
+
+type config struct {
+	Headers map[string]string `yaml:"headers"`
+}
+
+var conf config
 var progress int = 1
 var (
-	resultJs  []string
-	resultUrl []string
+	resultJs  [][]string
+	resultUrl [][]string
 	endUrl    []string
 )
 
 var (
 	h bool
+	I bool
 	m int
 	s string
 	u string
@@ -44,7 +52,7 @@ var ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.htm
 
 func init() {
 	flag.BoolVar(&h, "h", false, "this help")
-
+	flag.BoolVar(&I, "i", false, "set configFile")
 	flag.StringVar(&u, "u", "", "set url")
 	flag.StringVar(&c, "c", "", "set cookie")
 	flag.StringVar(&f, "f", "", "set urlFile")
@@ -57,8 +65,8 @@ func init() {
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/8/29  by pingc
-Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status]
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/5  by pingc
+Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status] [-i configFile]
 
 Options:
 `)
@@ -84,7 +92,9 @@ func main() {
 			return
 		}
 	}
-
+	if I {
+		GetConfig("./config.yaml")
+	}
 	if f != "" {
 		// 创建句柄
 		fi, err := os.Open(f)
@@ -124,7 +134,7 @@ func start(u string) {
 	go spider(u, true)
 	wg.Wait()
 	progress = 1
-	fmt.Println("\rSpider OK")
+	fmt.Println("\rSpider OK      ")
 
 	resultUrl = RemoveRepeatElement(resultUrl)
 	resultJs = RemoveRepeatElement(resultJs)
@@ -135,15 +145,15 @@ func start(u string) {
 	//验证JS状态
 	for i, s := range resultJs {
 		wg.Add(1)
-		go jsState(s, i)
+		go jsState(s[0], i)
 	}
 	//验证URL状态
 	for i, s := range resultUrl {
 		wg.Add(1)
-		go urlState(s, i)
+		go urlState(s[0], i)
 	}
 	wg.Wait()
-	fmt.Println("\rValidate OK   ")
+	fmt.Println("\rValidate OK     ")
 
 	//打印还是输出
 	if len(o) > 0 {
@@ -156,7 +166,10 @@ func start(u string) {
 func printProgress() {
 	num := len(resultJs) + len(resultUrl)
 	fmt.Printf("\rValidate %.0f%%", float64(progress+1)/float64(num+1)*100)
+	mux.Lock()
 	progress++
+	mux.Unlock()
+
 }
 
 //导出
@@ -170,24 +183,21 @@ func outFile() {
 	} else {
 		host = hosts[0]
 	}
-	//对IP做兼容
-	re2 := regexp.MustCompile("(([01]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])\\.){3}([01]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])")
-	hostIp := re2.FindAllString(u, 1)
-	if len(hostIp) > 0 {
-		host = hostIp[0]
-	}
 
 	//抓取的域名优先排序
-	resultJs = SelectSort(resultJs)
+	if s != "" {
+		resultUrl = SelectSort(resultUrl)
+		resultJs = SelectSort(resultJs)
+	}
 	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
-	//抓取的域名优先排序
-	resultUrl = SelectSort(resultUrl)
 	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
 	//输出到文件
 	if strings.Contains(host, ":") {
 		host = strings.Replace(host, ":", "：", -1)
 	}
 	file, err := os.OpenFile(o+"/"+host+".csv", os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	file.WriteString("\xEF\xBB\xBF") // 写入UTF-8 BOM，防止中文乱码
+	// 写数据到文件
 	if err != nil {
 		fmt.Println("open file error:", err)
 		return
@@ -195,89 +205,98 @@ func outFile() {
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-	writer.WriteString("url,status,size\n")
+	writer.WriteString("url,status,size,title\n")
 	writer.WriteString(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u) + "\n")
 	for _, j := range resultJsHost {
-		if strings.Contains(j, "  |  ") || (s == "") {
-			split := strings.Split(j, "  |  ")
-			if len(split) == 3 {
-				if strings.HasPrefix(split[2], "2") {
-					j = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				} else if strings.HasPrefix(split[2], "3") {
-					j = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				} else {
-					j = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				}
-
-			} else if len(split) == 2 {
-				j = fmt.Sprintf("%s,%s,0", split[0], split[1])
-			} else if s == "" {
-				j = fmt.Sprintf(j)
+		var str = ""
+		if len(j) == 3 {
+			if strings.HasPrefix(j[1], "2") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+			} else if strings.HasPrefix(j[1], "3") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+			} else {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
 			}
-			writer.WriteString(j + "\n")
+
+		} else if len(j) == 2 {
+			str = fmt.Sprintf("\"%s\",\"%s\",\"0\"", j[0], j[1])
+		} else if s == "" {
+			str = fmt.Sprintf("\"" + j[0] + "\"")
 		}
+		writer.WriteString(str + "\n")
 	}
 	writer.WriteString("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other\n")
 	for _, j := range resultJsOther {
-		if strings.Contains(j, "  |  ") || (s == "") {
-			split := strings.Split(j, "  |  ")
-			if len(split) == 3 {
-				if strings.HasPrefix(split[2], "2") {
-					j = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				} else if strings.HasPrefix(split[2], "3") {
-					j = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				} else {
-					j = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				}
-			} else if len(split) == 2 {
-				j = fmt.Sprintf("%s,%s,0", split[0], split[1])
-			} else if s == "" {
-				j = fmt.Sprintf(j)
+		var str = ""
+		if len(j) == 3 {
+			if strings.HasPrefix(j[1], "2") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+			} else if strings.HasPrefix(j[1], "3") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+			} else {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
 			}
-			writer.WriteString(j + "\n")
+		} else if len(j) == 2 {
+			str = fmt.Sprintf("\"%s\",\"%s\",\"0\"", j[0], j[1])
+		} else if s == "" {
+			str = fmt.Sprintf("\"" + j[0] + "\"")
 		}
+		writer.WriteString(str + "\n")
 	}
 
 	writer.WriteString("\n\n")
 	writer.WriteString(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u) + "\n")
 	for _, u := range resultUrlHost {
-		if strings.Contains(u, "  |  ") || (s == "") {
-			split := strings.Split(u, "  |  ")
-			if len(split) == 3 {
-				if strings.HasPrefix(split[2], "2") {
-					u = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				} else if strings.HasPrefix(split[2], "3") {
-					u = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				} else {
-					u = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				}
-			} else if len(split) == 2 {
-				u = fmt.Sprintf("%s,%s,0", split[0], split[1])
-			} else if s == "" {
-				u = fmt.Sprintf(u)
+		var str = ""
+		if len(u) == 4 {
+			if strings.HasPrefix(u[1], "2") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], strings.Replace(u[3], ",", "，", -1))
+			} else if strings.HasPrefix(u[1], "3") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], strings.Replace(u[3], ",", "，", -1))
+			} else {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], strings.Replace(u[3], ",", "，", -1))
 			}
-			writer.WriteString(u + "\n")
+		} else if len(u) == 3 {
+			if strings.HasPrefix(u[1], "2") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+			} else if strings.HasPrefix(u[1], "3") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+			} else {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+			}
+		} else if len(u) == 2 {
+			str = fmt.Sprintf("\"%s\",\"%s\",\"0\"", u[0], u[1])
+		} else if s == "" {
+			str = fmt.Sprintf("\"" + u[0] + "\"")
 		}
+		writer.WriteString(str + "\n")
 	}
 	writer.WriteString("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other\n")
 	for _, u := range resultUrlOther {
-		if strings.Contains(u, "  |  ") || (s == "") {
-			split := strings.Split(u, "  |  ")
-			if len(split) == 3 {
-				if strings.HasPrefix(split[2], "2") {
-					u = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				} else if strings.HasPrefix(split[2], "3") {
-					u = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				} else {
-					u = fmt.Sprintf("%s,%s,%s", split[0], split[2], split[1])
-				}
-			} else if len(split) == 2 {
-				u = fmt.Sprintf("%s,%s,0", split[0], split[1])
-			} else if s == "" {
-				u = fmt.Sprintf(u)
+		var str = ""
+		if len(u) == 4 {
+			if strings.HasPrefix(u[1], "2") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3])
+			} else if strings.HasPrefix(u[1], "3") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3])
+			} else {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3])
 			}
-			writer.WriteString(u + "\n")
+		} else if len(u) == 3 {
+			if strings.HasPrefix(u[1], "2") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+			} else if strings.HasPrefix(u[1], "3") {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+			} else {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+			}
+		} else if len(u) == 2 {
+			str = fmt.Sprintf("\"%s\",\"%s\",\"0\"", u[0], u[1])
+		} else if s == "" {
+			str = fmt.Sprintf("\"" + u[0] + "\"")
 		}
+		writer.WriteString(str + "\n")
+
 	}
 
 	writer.Flush() //内容是先写到缓存对，所以需要调用flush将缓存对数据真正写到文件中
@@ -299,98 +318,116 @@ func print() {
 		host = hosts[0]
 	}
 	//打印JS
-	resultJs = SelectSort(resultJs)
+	if s != "" {
+		resultJs = SelectSort(resultJs)
+	}
 	//抓取的域名优先排序
 	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
 
 	ulen := ""
 	if len(resultUrl) != 0 {
-		ulen = strconv.Itoa(len(resultUrl[0]))
+		uleni := 0
+		for _, s := range resultUrl {
+			uleni += len(s[0])
+		}
+		ulen = strconv.Itoa(uleni/len(resultUrl) + 10)
 	}
 	jlen := ""
 	if len(resultJs) != 0 {
-		jlen = strconv.Itoa(len(resultJs[0]))
+		jleni := 0
+		for _, s := range resultJs {
+			jleni += len(s[0])
+		}
+		jlen = strconv.Itoa(jleni/len(resultJs) + 10)
+
 	}
 	fmt.Println(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u))
 	for _, j := range resultJsHost {
-		if strings.Contains(j, "  |  ") || (s == "") {
-			split := strings.Split(j, "  |  ")
-			if len(split) == 3 {
-				if strings.HasPrefix(split[2], "2") {
-					color.Green("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				} else if strings.HasPrefix(split[2], "3") {
-					color.Yellow("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				} else {
-					color.Red("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				}
-			} else if len(split) == 2 {
-				color.Red("%-"+jlen+"s [status: %s, size: 0]", split[0], split[1])
-			} else if s == "" {
-				fmt.Println(j)
+
+		if len(j) == 3 {
+			if strings.HasPrefix(j[1], "2") {
+				color.Green("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+			} else if strings.HasPrefix(j[1], "3") {
+				color.Yellow("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+			} else {
+				color.Red("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
 			}
+		} else if len(j) == 2 {
+			color.Red("%-"+jlen+"s [status: %s, size: 0]", j[0], j[1])
+		} else if s == "" {
+			fmt.Println(j[0])
 		}
 	}
 	fmt.Println("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other")
 	for _, j := range resultJsOther {
-		if strings.Contains(j, "  |  ") || (s == "") {
-			split := strings.Split(j, "  |  ")
-			if len(split) == 3 {
-				if strings.HasPrefix(split[2], "2") {
-					color.Green("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				} else if strings.HasPrefix(split[2], "3") {
-					color.Yellow("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				} else {
-					color.Red("%-"+jlen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				}
-			} else if len(split) == 2 {
-				color.Red("%-"+jlen+"s [status: %s, size: 0]", split[0], split[1])
-			} else if s == "" {
-				fmt.Println(j)
+		if len(j) == 3 {
+			if strings.HasPrefix(j[1], "2") {
+				color.Green("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+			} else if strings.HasPrefix(j[1], "3") {
+				color.Yellow("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+			} else {
+				color.Red("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
 			}
+		} else if len(j) == 2 {
+			color.Red("%-"+jlen+"s [status: %s, size: 0]", j[0], j[1])
+		} else if s == "" {
+			fmt.Println(j[0])
 		}
 	}
 
 	//打印URL
 	fmt.Println("\n\n")
-	resultUrl = SelectSort(resultUrl)
+	if s != "" {
+		resultUrl = SelectSort(resultUrl)
+	}
 	//抓取的域名优先排序
 	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
 	fmt.Println(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u))
 	for _, u := range resultUrlHost {
-		if strings.Contains(u, "  |  ") || (s == "") {
-			split := strings.Split(u, "  |  ")
-			if len(split) == 3 {
-				if strings.HasPrefix(split[2], "2") {
-					color.Green("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				} else if strings.HasPrefix(split[2], "3") {
-					color.Yellow("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				} else {
-					color.Red("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				}
-			} else if len(split) == 2 {
-				color.Red("%-"+ulen+"s [status: %s, size: 0]", split[0], split[1])
-			} else if s == "" {
-				fmt.Println(u)
+		if len(u) == 4 {
+			if strings.HasPrefix(u[1], "2") {
+				color.Green("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+			} else if strings.HasPrefix(u[1], "3") {
+				color.Yellow("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+			} else {
+				color.Red("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
 			}
+		} else if len(u) == 3 {
+			if strings.HasPrefix(u[1], "2") {
+				color.Green("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+			} else if strings.HasPrefix(u[1], "3") {
+				color.Yellow("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+			} else {
+				color.Red("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+			}
+		} else if len(u) == 2 {
+			color.Red("%-"+ulen+"s [status: %s, size: 0]", u[0], u[1])
+		} else if s == "" {
+			fmt.Println(u[0])
 		}
 	}
 	fmt.Println("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other")
 	for _, u := range resultUrlOther {
-		if strings.Contains(u, "  |  ") || (s == "") {
-			split := strings.Split(u, "  |  ")
-			if len(split) == 3 {
-				if strings.HasPrefix(split[2], "2") {
-					color.Green("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				} else if strings.HasPrefix(split[2], "3") {
-					color.Yellow("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				} else {
-					color.Red("%-"+ulen+"s [status: %s, size: %s]", split[0], split[2], split[1])
-				}
-			} else if len(split) == 2 {
-				color.Red("%-"+ulen+"s [status: %s, size: 0]", split[0], split[1])
-			} else if s == "" {
-				fmt.Println(u)
+		if len(u) == 4 {
+			if strings.HasPrefix(u[1], "2") {
+				color.Green("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+			} else if strings.HasPrefix(u[1], "3") {
+				color.Yellow("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+			} else {
+				color.Red("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
 			}
+		} else if len(u) == 3 {
+			if strings.HasPrefix(u[1], "2") {
+				color.Green("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+			} else if strings.HasPrefix(u[1], "3") {
+				color.Yellow("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+			} else {
+				color.Red("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+			}
+		} else if len(u) == 2 {
+			color.Red("%-"+ulen+"s [status: %s, size: 0]", u[0], u[1])
+		} else if s == "" {
+			fmt.Println(u[0])
 		}
 	}
 }
@@ -414,17 +451,21 @@ func spider(ur string, is bool) {
 	}
 	client := &http.Client{Timeout: 10 * time.Second, Transport: tr}
 
-	reqest, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return
 	}
 
 	//增加header选项
-	reqest.Header.Add("Cookie", c)
-	reqest.Header.Add("User-Agent", ua)
-
+	request.Header.Add("Cookie", c)
+	request.Header.Add("User-Agent", ua)
+	request.Header.Add("Accept", "*/*")
+	//加载yaml配置
+	if I {
+		request.Header = SetHeadersConfig(request.Header)
+	}
 	//处理返回结果
-	response, err := client.Do(reqest)
+	response, err := client.Do(request)
 	if err != nil {
 		return
 	} else {
@@ -636,27 +677,34 @@ func jsState(u string, i int) {
 	defer wg.Done()
 	defer printProgress()
 	if s == "" {
-		resultJs[i] = u
+		resultJs[i][0] = u
 		return
 	}
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Timeout: 15 * time.Second, Transport: tr}
-	reqest, err := http.NewRequest("GET", u, nil)
+	request, err := http.NewRequest("GET", u, nil)
 	if err != nil {
+		resultJs[i][0] = ""
 		return
 	}
 	//增加header选项
-	reqest.Header.Add("Cookie", c)
-	reqest.Header.Add("User-Agent", ua)
+	request.Header.Add("Cookie", c)
+	request.Header.Add("User-Agent", ua)
+	request.Header.Add("Accept", "*/*")
+	//加载yaml配置
+	if I {
+		request.Header = SetHeadersConfig(request.Header)
+	}
 	//处理返回结果
-	response, err := client.Do(reqest)
+	response, err := client.Do(request)
 	if err != nil {
 		if strings.Contains(err.Error(), "Client.Timeout") && s == "" {
-			resultJs[i] = u + "  |  timeout"
+			resultJs[i] = []string{u, "timeout"}
+
 		} else {
-			resultJs[i] = ""
+			resultJs[i][0] = ""
 		}
 		return
 	}
@@ -670,9 +718,9 @@ func jsState(u string, i int) {
 		} else {
 			length = len(dataBytes)
 		}
-		resultJs[i] = u + "  |  " + strconv.Itoa(length) + "  |  " + strconv.Itoa(code)
+		resultJs[i] = []string{u, strconv.Itoa(code), strconv.Itoa(length)}
 	} else {
-		resultUrl[i] = ""
+		resultUrl[i][0] = ""
 	}
 }
 
@@ -681,27 +729,33 @@ func urlState(u string, i int) {
 	defer wg.Done()
 	defer printProgress()
 	if s == "" {
-		resultUrl[i] = u
+		resultUrl[i][0] = u
 		return
 	}
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Timeout: 15 * time.Second, Transport: tr}
-	reqest, err := http.NewRequest("GET", u, nil)
+	request, err := http.NewRequest("GET", u, nil)
 	if err != nil {
+		resultUrl[i][0] = ""
 		return
 	}
 	//增加header选项
-	reqest.Header.Add("Cookie", c)
-	reqest.Header.Add("User-Agent", ua)
+	request.Header.Add("Cookie", c)
+	request.Header.Add("User-Agent", ua)
+	request.Header.Add("Accept", "*/*")
+	//加载yaml配置
+	if I {
+		request.Header = SetHeadersConfig(request.Header)
+	}
 	//处理返回结果
-	response, err := client.Do(reqest)
+	response, err := client.Do(request)
 	if err != nil {
 		if strings.Contains(err.Error(), "Client.Timeout") && s == "all" {
-			resultUrl[i] = u + "  |  timeout"
+			resultUrl[i] = []string{u, "timeout"}
 		} else {
-			resultUrl[i] = ""
+			resultUrl[i][0] = ""
 		}
 		return
 	}
@@ -715,9 +769,16 @@ func urlState(u string, i int) {
 		} else {
 			length = len(dataBytes)
 		}
-		resultUrl[i] = u + "  |  " + strconv.Itoa(length) + "  |  " + strconv.Itoa(code)
+		body := string(dataBytes)
+		re := regexp.MustCompile("<title>(.*?)</title>")
+		title := re.FindAllStringSubmatch(body, -1)
+		if len(title) != 0 {
+			resultUrl[i] = []string{u, strconv.Itoa(code), strconv.Itoa(length), title[0][1]}
+		} else {
+			resultUrl[i] = []string{u, strconv.Itoa(code), strconv.Itoa(length)}
+		}
 	} else {
-		resultUrl[i] = ""
+		resultUrl[i][0] = ""
 	}
 }
 
@@ -725,11 +786,11 @@ func appendJs(url string) {
 	lock.Lock()
 	defer lock.Unlock()
 	for _, eachItem := range resultJs {
-		if eachItem == url {
+		if eachItem[0] == url {
 			return
 		}
 	}
-	resultJs = append(resultJs, url)
+	resultJs = append(resultJs, []string{url})
 
 }
 
@@ -737,11 +798,11 @@ func appendUrl(url string) {
 	lock.Lock()
 	defer lock.Unlock()
 	for _, eachItem := range resultUrl {
-		if eachItem == url {
+		if eachItem[0] == url {
 			return
 		}
 	}
-	resultUrl = append(resultUrl, url)
+	resultUrl = append(resultUrl, []string{url})
 
 }
 
@@ -780,20 +841,15 @@ func IsDir(path string) bool {
 }
 
 //对结果进行状态码排序
-func SelectSort(arr []string) []string {
+func SelectSort(arr [][]string) [][]string {
 	length := len(arr)
 	var sort []int
 	for _, v := range arr {
-		if strings.Contains(v, "  |  ") {
-			if strings.Contains(v, "|  timeout") {
-				sort = append(sort, 999)
-			} else {
-				s := strings.Split(v, "  |  ")
-				in, _ := strconv.Atoi(s[2])
-				sort = append(sort, in)
-			}
+		if v[0] == "" || v[1] == "timeout" {
+			sort = append(sort, 999)
 		} else {
-			sort = append(sort, 1000)
+			in, _ := strconv.Atoi(v[1])
+			sort = append(sort, in)
 		}
 	}
 	if length <= 1 {
@@ -815,16 +871,16 @@ func SelectSort(arr []string) []string {
 	}
 }
 
-//对结果进行状态码与URL排序排序
-func urlDispose(arr []string, url, host string) ([]string, []string) {
-	var urls []string
-	var urlts []string
-	var other []string
+//对结果进行URL排序
+func urlDispose(arr [][]string, url, host string) ([][]string, [][]string) {
+	var urls [][]string
+	var urlts [][]string
+	var other [][]string
 	for _, v := range arr {
-		if strings.Contains(v, url) {
+		if strings.Contains(v[0], url) {
 			urls = append(urls, v)
 		} else {
-			if strings.Contains(v, host) {
+			if strings.Contains(v[0], host) {
 				urlts = append(urls, v)
 			} else {
 				other = append(other, v)
@@ -836,18 +892,6 @@ func urlDispose(arr []string, url, host string) ([]string, []string) {
 		urls = append(urls, v)
 	}
 	return RemoveRepeatElement(urls), RemoveRepeatElement(other)
-}
-
-//判断文件夹是否存在
-func HasDir(path string) (bool, error) {
-	_, _err := os.Stat(path)
-	if _err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(_err) {
-		return false, nil
-	}
-	return false, _err
 }
 
 //提取顶级域名
@@ -887,21 +931,21 @@ func getHost(u string) string {
 }
 
 //去重+去除错误url
-func RemoveRepeatElement(list []string) []string {
+func RemoveRepeatElement(list [][]string) [][]string {
 	// 创建一个临时map用来存储数组元素
 	temp := make(map[string]bool)
-	var list2 []string
+	var list2 [][]string
 	index := 0
 	for _, v := range list {
-		if len(v) > 10 {
+		if len(v[0]) > 10 {
 			re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
-			hosts := re.FindAllString(v, 1)
+			hosts := re.FindAllString(v[0], 1)
 			if len(hosts) != 0 {
 				// 遍历数组元素，判断此元素是否已经存在map中
-				_, ok := temp[v]
+				_, ok := temp[v[0]]
 				if !ok {
 					list2 = append(list2, v)
-					temp[v] = true
+					temp[v[0]] = true
 				}
 			}
 		}
@@ -909,4 +953,35 @@ func RemoveRepeatElement(list []string) []string {
 
 	}
 	return list2
+}
+
+//读取配置文件
+func GetConfig(path string) {
+	con := &config{}
+	if f, err := os.Open(path); err != nil {
+		if strings.Contains(err.Error(), "The system cannot find the file specified") {
+			con.Headers = map[string]string{"Cookie": c, "User-Agent": ua, "Accept": "*/*"}
+			data, err2 := yaml.Marshal(con)
+			err2 = ioutil.WriteFile(path, data, 0777)
+			if err2 != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println("未找到配置文件,已在当面目录下创建配置文件: config.yaml")
+			}
+		} else {
+			fmt.Println("配置文件错误,请尝试重新生成配置文件")
+		}
+		os.Exit(1)
+	} else {
+		yaml.NewDecoder(f).Decode(con)
+		conf = *con
+	}
+}
+
+//处理配置
+func SetHeadersConfig(header http.Header) http.Header {
+	for k, v := range conf.Headers {
+		header.Add(k, v)
+	}
+	return header
 }
