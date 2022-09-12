@@ -98,6 +98,11 @@ SET GOARCH=386
 go build -ldflags "-s -w" -o URLFinder-macos32 main.go
 ```
 ## 更新说明  
+
+2022/9/12  
+修复 linux与mac下的配置文件生成错误  
+修复 已知逻辑bug  
+
 2022/9/5  
 新增 链接存在标题时，显示标题  
 新增 -i 参数，加载yaml配置文件（目前只支持配置请求头headers）  

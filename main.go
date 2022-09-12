@@ -35,6 +35,7 @@ var (
 	resultJs  [][]string
 	resultUrl [][]string
 	endUrl    []string
+	jsinurl   map[string]string
 )
 
 var (
@@ -65,7 +66,7 @@ func init() {
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/5  by pingc
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/12  by pingc
 Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status] [-i configFile]
 
 Options:
@@ -93,7 +94,7 @@ func main() {
 		}
 	}
 	if I {
-		GetConfig("./config.yaml")
+		GetConfig("config.yaml")
 	}
 	if f != "" {
 		// 创建句柄
@@ -129,6 +130,7 @@ func main() {
 
 func start(u string) {
 	wg.Add(1)
+	jsinurl = make(map[string]string)
 	fmt.Println("Start Spider URL: " + u)
 
 	go spider(u, true)
@@ -504,9 +506,9 @@ func jsFind(cont, host, scheme, path string, is bool) {
 	}
 	//js匹配正则
 	res := []string{
-		".(http[^\\s,^',^’,^\",^”,^>,^<,^;,^(,^),^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^<,^:,^;,\\*,^(,^),^\\[]{5}[.]js)",
-		"[\",',‘,“]\\s{0,6}(/{0,1}[^\\s,^',^’,^\",^”,^>,^<,^:,^;,\\*,^(,^),^\\[]2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^<,^:,^;,\\*,^(,^),^\\[]{5}[.]js)",
-		"=\\s{0,6}[\",',’,”]{0,1}\\s{0,6}(/{0,1}[^\\s,^',^’,^\",^”,^>,^<,^;,\\*,^(,^),^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^<,^:,^;,\\*,^(,^),^\\[]{5}[.]js)",
+		".(http[^\\s,^',^’,^\",^”,^>,^<,^;,^(,^),^\\|,^\\*,^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^<,^:,^;,^\\*,^\\|,^(,^),^\\[]{5}[.]js)",
+		"[\",',‘,“]\\s{0,6}(/{0,1}[^\\s,^',^’,^\",^”,^\\|,^>,^<,^:,^;,^\\*,^(,^),^\\[]2,250}?[^=,^\\*,^\\s,^',^’,^\\|,^\",^”,^>,^<,^:,^;,^\\*,^(,^),^\\[]{5}[.]js)",
+		"=\\s{0,6}[\",',’,”]{0,1}\\s{0,6}(/{0,1}[^\\s,^',^’,^\",^”,^\\|,^>,^<,^;,^\\*,^(,^),^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^\\|,^<,^:,^;,^\\*,^(,^),^\\[]{5}[.]js)",
 	}
 	host = scheme + "://" + host
 	for _, re := range res {
@@ -519,26 +521,26 @@ func jsFind(cont, host, scheme, path string, is bool) {
 				continue
 			}
 			if strings.HasPrefix(js[0], "https:") || strings.HasPrefix(js[0], "http:") {
-				appendJs(js[0])
+				appendJs(js[0], host+path)
 				if is || m == 2 {
 					wg.Add(1)
 					go spider(js[0], false)
 				}
 			} else if strings.HasPrefix(js[0], "//") {
-				appendJs(scheme + ":" + js[0])
+				appendJs(scheme+":"+js[0], host+path)
 				if is || m == 2 {
 					wg.Add(1)
 					go spider(scheme+":"+js[0], false)
 				}
 
 			} else if strings.HasPrefix(js[0], "/") {
-				appendJs(host + js[0])
+				appendJs(host+js[0], host+path)
 				if is || m == 2 {
 					wg.Add(1)
 					go spider(host+js[0], false)
 				}
 			} else {
-				appendJs(host + cata + js[0])
+				appendJs(host+cata+js[0], host+path)
 				if is || m == 2 {
 					wg.Add(1)
 					go spider(host+cata+js[0], false)
@@ -566,7 +568,7 @@ func urlFind(cont, host, scheme, path string, is bool) {
 	res := []string{
 		"[\",',‘,“]\\s{0,6}(http[^\\s,^',^’,^\",^”,^>,^<,^),^(]{2,250}?)\\s{0,6}[\",',‘,“]",
 		"=\\s{0,6}(http[^\\s,^',^’,^\",^”,^>,^<,^),^(]{2,250})",
-		"[\",',‘,“]\\s{0,6}(/[^\\s,^',^’,^\",^”,^>,^<,^\\:,^),^(]{2,250}?)\\s{0,6}[\",',‘,“]",
+		"[\",',‘,“]\\s{0,6}(#{0,1}/[^\\s,^',^’,^\",^”,^>,^<,^\\:,^),^(]{2,250}?)\\s{0,6}[\",',‘,“]",
 		"href\\s{0,6}=\\s{0,6}[\",',‘,“]{0,1}\\s{0,6}([^\\s,^',^’,^\",^“,^>,^<,^),^(]{2,250})|action\\s{0,6}=\\s{0,6}[\",',‘,“]{0,1}\\s{0,6}([^\\s,^',^’,^\",^“,^>,^<,^),^(]{2,250})",
 	}
 	for _, re := range res {
@@ -601,6 +603,12 @@ func urlFind(cont, host, scheme, path string, is bool) {
 				if is && m == 2 {
 					wg.Add(1)
 					go spider(host+cata+url[0], false)
+				}
+			} else if strings.HasSuffix(host+path, ".js") {
+				appendUrl(jsinurl[host+path] + url[0])
+				if is && m == 2 {
+					wg.Add(1)
+					go spider(jsinurl[host+path]+url[0], false)
 				}
 			}
 		}
@@ -648,7 +656,7 @@ func urlFilter(str [][]string) [][]string {
 		str[i][0] = strings.Replace(str[i][0], "%2F", "/", -1)
 
 		//过滤包含指定内容
-		fstr := []string{".js?", ".css?", ".jpeg?", ".jpg?", ".png?", ".gif?", "github.com", "www.w3.org", "example.com", "<", ">", "{", "}", "[", "]", "|", "^", ";", "/js/", "location.href", "javascript:void"}
+		fstr := []string{".js?", ".css?", ".jpeg?", ".jpg?", ".png?", ".gif?", "github.com", "www.w3.org", "example.com", "<", ">", "{", "}", "[", "]", "|", "^", ";", "/js/", "location.href", "javascript:void", "\\n"}
 		for _, v := range fstr {
 			if strings.Contains(str[i][0], v) {
 				str[i][0] = ""
@@ -782,7 +790,7 @@ func urlState(u string, i int) {
 	}
 }
 
-func appendJs(url string) {
+func appendJs(url string, urltojs string) {
 	lock.Lock()
 	defer lock.Unlock()
 	for _, eachItem := range resultJs {
@@ -791,6 +799,13 @@ func appendJs(url string) {
 		}
 	}
 	resultJs = append(resultJs, []string{url})
+	if strings.HasSuffix(urltojs, ".js") {
+		jsinurl[url] = jsinurl[urltojs]
+	} else {
+		re := regexp.MustCompile("[a-zA-z]+://[^\\s]*/")
+		u := re.FindAllStringSubmatch(urltojs, -1)
+		jsinurl[url] = u[0][0]
+	}
 
 }
 
@@ -959,10 +974,11 @@ func RemoveRepeatElement(list [][]string) [][]string {
 func GetConfig(path string) {
 	con := &config{}
 	if f, err := os.Open(path); err != nil {
-		if strings.Contains(err.Error(), "The system cannot find the file specified") {
+		if strings.Contains(err.Error(), "The system cannot find the file specified") || strings.Contains(err.Error(), "no such file or directory") {
+
 			con.Headers = map[string]string{"Cookie": c, "User-Agent": ua, "Accept": "*/*"}
 			data, err2 := yaml.Marshal(con)
-			err2 = ioutil.WriteFile(path, data, 0777)
+			err2 = ioutil.WriteFile(path, data, 0644)
 			if err2 != nil {
 				fmt.Println(err)
 			} else {
@@ -970,6 +986,7 @@ func GetConfig(path string) {
 			}
 		} else {
 			fmt.Println("配置文件错误,请尝试重新生成配置文件")
+			fmt.Println(err)
 		}
 		os.Exit(1)
 	} else {
