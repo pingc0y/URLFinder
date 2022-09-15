@@ -66,7 +66,7 @@ func init() {
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/12  by pingc
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/15  by pingc
 Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status] [-i configFile]
 
 Options:
@@ -802,7 +802,7 @@ func appendJs(url string, urltojs string) {
 	if strings.HasSuffix(urltojs, ".js") {
 		jsinurl[url] = jsinurl[urltojs]
 	} else {
-		re := regexp.MustCompile("[a-zA-z]+://[^\\s]*/")
+		re := regexp.MustCompile("[a-zA-z]+://[^\\s]*/|[a-zA-z]+://[^\\s]*")
 		u := re.FindAllStringSubmatch(urltojs, -1)
 		jsinurl[url] = u[0][0]
 	}

@@ -98,6 +98,8 @@ SET GOARCH=386
 go build -ldflags "-s -w" -o URLFinder-macos32 main.go
 ```
 ## 更新说明  
+2022/9/15  
+修复 某种情况下的数组越界  
 
 2022/9/12  
 修复 linux与mac下的配置文件生成错误  
@@ -111,7 +113,7 @@ go build -ldflags "-s -w" -o URLFinder-macos32 main.go
  
 
 2022/8/29  
-新增抓取url数量显示  
+新增 抓取url数量显示  
 优化 部分代码  
 新增 提供各平台可执行文件
 
