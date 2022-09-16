@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/fatih/color"
+	"github.com/gookit/color"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
@@ -29,6 +29,8 @@ type config struct {
 	Headers map[string]string `yaml:"headers"`
 }
 
+var ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+
 var conf config
 var progress int = 1
 var (
@@ -36,38 +38,51 @@ var (
 	resultUrl [][]string
 	endUrl    []string
 	jsinurl   map[string]string
+	jstourl   map[string]string
+	urltourl  map[string]string
 )
 
+var (
+	Green  = color.Style{color.LightYellow}.Render
+	Blue   = color.Style{color.LightBlue}.Render
+	Red    = color.Style{color.LightRed}.Render
+	Yellow = color.Style{color.LightYellow}.Render
+)
 var (
 	h bool
 	I bool
 	m int
 	s string
 	u string
+	d string
 	c string
 	a string
 	f string
 	o string
 )
-var ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+
+var (
+	risks = []string{"remove", "delete", "insert", "update", "logout"}
+)
 
 func init() {
 	flag.BoolVar(&h, "h", false, "this help")
 	flag.BoolVar(&I, "i", false, "set configFile")
 	flag.StringVar(&u, "u", "", "set url")
+	flag.StringVar(&d, "d", "", "set domainName")
 	flag.StringVar(&c, "c", "", "set cookie")
 	flag.StringVar(&f, "f", "", "set urlFile")
 	flag.StringVar(&o, "o", "", "set outFile")
 	flag.StringVar(&a, "a", "", "set user-agent")
 	flag.StringVar(&s, "s", "", "set status")
-	flag.IntVar(&m, "m", 1, "set mode \n 1  normal \n 2  thorough \n")
+	flag.IntVar(&m, "m", 1, "set mode \n   1  normal \n   2  thorough \n   3  security \n")
 
 	// 改变默认的 Usage
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/15  by pingc
-Usage: URLFinder [-h help] [-u url]  [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status] [-i configFile]
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/16  by pingc
+Usage: URLFinder [-h help] [-u url] [-d domainName] [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status] [-i configFile]
 
 Options:
 `)
@@ -102,13 +117,12 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		//func NewReader(rd io.Reader) *Reader {}，返回的是bufio.Reader结构体
 		r := bufio.NewReader(fi) // 创建 Reader
 		for {
 			resultJs = nil
 			resultUrl = nil
 			endUrl = nil
-			//func (b *Reader) ReadBytes(delim byte) ([]byte, error) {}
+
 			lineBytes, err := r.ReadBytes('\n')
 			//去掉字符串首尾空白字符，返回字符串
 			line := strings.TrimSpace(string(lineBytes))
@@ -123,15 +137,15 @@ func main() {
 		}
 		return
 	}
-
 	start(u)
-
 }
 
 func start(u string) {
 	wg.Add(1)
 	jsinurl = make(map[string]string)
-	fmt.Println("Start Spider URL: " + u)
+	jstourl = make(map[string]string)
+	urltourl = make(map[string]string)
+	fmt.Println("Start Spider URL: " + color.LightBlue.Sprintf(u))
 
 	go spider(u, true)
 	wg.Wait()
@@ -163,15 +177,6 @@ func start(u string) {
 	} else {
 		print()
 	}
-}
-
-func printProgress() {
-	num := len(resultJs) + len(resultUrl)
-	fmt.Printf("\rValidate %.0f%%", float64(progress+1)/float64(num+1)*100)
-	mux.Lock()
-	progress++
-	mux.Unlock()
-
 }
 
 //导出
@@ -207,95 +212,113 @@ func outFile() {
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-	writer.WriteString("url,status,size,title\n")
-	writer.WriteString(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u) + "\n")
+	if s == "" {
+		writer.WriteString("url,source\n")
+	} else {
+		writer.WriteString("url,status,size,title,source\n")
+	}
+
+	if d == "" {
+		writer.WriteString(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u) + "\n")
+	} else {
+		writer.WriteString(strconv.Itoa(len(resultJsHost)+len(resultJsOther)) + " JS to " + d + "\n")
+	}
+
 	for _, j := range resultJsHost {
 		var str = ""
 		if len(j) == 3 {
 			if strings.HasPrefix(j[1], "2") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", j[0], j[1], j[2], jstourl[j[0]])
 			} else if strings.HasPrefix(j[1], "3") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", j[0], j[1], j[2], jstourl[j[0]])
 			} else {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", j[0], j[1], j[2], jstourl[j[0]])
 			}
-
 		} else if len(j) == 2 {
-			str = fmt.Sprintf("\"%s\",\"%s\",\"0\"", j[0], j[1])
+			str = fmt.Sprintf("\"%s\",\"%s\",\"0\",,\"%s\"", j[0], j[1], jstourl[j[0]])
 		} else if s == "" {
-			str = fmt.Sprintf("\"" + j[0] + "\"")
+			str = fmt.Sprintf("\"%s\",\"%s\"", j[0], jstourl[j[0]])
 		}
 		writer.WriteString(str + "\n")
 	}
-	writer.WriteString("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other\n")
+	if d == "" {
+		writer.WriteString("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other\n")
+	}
 	for _, j := range resultJsOther {
 		var str = ""
 		if len(j) == 3 {
 			if strings.HasPrefix(j[1], "2") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", j[0], j[1], j[2], jstourl[j[0]])
 			} else if strings.HasPrefix(j[1], "3") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", j[0], j[1], j[2], jstourl[j[0]])
 			} else {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", j[0], j[1], j[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", j[0], j[1], j[2], jstourl[j[0]])
 			}
 		} else if len(j) == 2 {
-			str = fmt.Sprintf("\"%s\",\"%s\",\"0\"", j[0], j[1])
+			str = fmt.Sprintf("\"%s\",\"%s\",\"0\",,\"%s\"", j[0], j[1], jstourl[j[0]])
 		} else if s == "" {
-			str = fmt.Sprintf("\"" + j[0] + "\"")
+			str = fmt.Sprintf("\"%s\",\"%s\"", j[0], jstourl[j[0]])
 		}
 		writer.WriteString(str + "\n")
 	}
 
 	writer.WriteString("\n\n")
-	writer.WriteString(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u) + "\n")
+	if d == "" {
+		writer.WriteString(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u) + "\n")
+	} else {
+		writer.WriteString(strconv.Itoa(len(resultUrlHost)+len(resultUrlOther)) + " URL to " + d + "\n")
+	}
+
 	for _, u := range resultUrlHost {
 		var str = ""
 		if len(u) == 4 {
 			if strings.HasPrefix(u[1], "2") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], strings.Replace(u[3], ",", "，", -1))
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
 			} else if strings.HasPrefix(u[1], "3") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], strings.Replace(u[3], ",", "，", -1))
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
 			} else {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], strings.Replace(u[3], ",", "，", -1))
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
 			}
 		} else if len(u) == 3 {
 			if strings.HasPrefix(u[1], "2") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
 			} else if strings.HasPrefix(u[1], "3") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
 			} else {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
 			}
 		} else if len(u) == 2 {
-			str = fmt.Sprintf("\"%s\",\"%s\",\"0\"", u[0], u[1])
+			str = fmt.Sprintf("\"%s\",\"%s\",\"0\",,\"%s\"", u[0], u[1], urltourl[u[0]])
 		} else if s == "" {
-			str = fmt.Sprintf("\"" + u[0] + "\"")
+			str = fmt.Sprintf("\"%s\",\"%s\"", u[0], urltourl[u[0]])
 		}
 		writer.WriteString(str + "\n")
 	}
-	writer.WriteString("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other\n")
+	if d == "" {
+		writer.WriteString("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other\n")
+	}
 	for _, u := range resultUrlOther {
 		var str = ""
 		if len(u) == 4 {
 			if strings.HasPrefix(u[1], "2") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
 			} else if strings.HasPrefix(u[1], "3") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
 			} else {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
 			}
 		} else if len(u) == 3 {
 			if strings.HasPrefix(u[1], "2") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
 			} else if strings.HasPrefix(u[1], "3") {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
 			} else {
-				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2])
+				str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
 			}
 		} else if len(u) == 2 {
-			str = fmt.Sprintf("\"%s\",\"%s\",\"0\"", u[0], u[1])
+			str = fmt.Sprintf("\"%s\",\"%s\",\"0\",,\"%s\"", u[0], u[1], urltourl[u[0]])
 		} else if s == "" {
-			str = fmt.Sprintf("\"" + u[0] + "\"")
+			str = fmt.Sprintf("\"%s\",\"%s\"", u[0], urltourl[u[0]])
 		}
 		writer.WriteString(str + "\n")
 
@@ -303,13 +326,14 @@ func outFile() {
 
 	writer.Flush() //内容是先写到缓存对，所以需要调用flush将缓存对数据真正写到文件中
 
-	fmt.Println(strconv.Itoa(len(resultJs))+"JS + "+strconv.Itoa(len(resultUrl))+"URL --> ", file.Name())
+	fmt.Println(strconv.Itoa(len(resultJsHost)+len(resultJsOther))+"JS + "+strconv.Itoa(len(resultUrlHost)+len(resultUrlOther))+"URL --> ", file.Name())
 
 	return
 }
 
 //打印
 func print() {
+
 	//获取域名
 	var host string
 	re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
@@ -324,6 +348,7 @@ func print() {
 		resultJs = SelectSort(resultJs)
 	}
 	//抓取的域名优先排序
+
 	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
 
 	ulen := ""
@@ -341,39 +366,43 @@ func print() {
 			jleni += len(s[0])
 		}
 		jlen = strconv.Itoa(jleni/len(resultJs) + 10)
-
 	}
-	fmt.Println(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u))
+	if d == "" {
+		fmt.Println(strconv.Itoa(len(resultJsHost)) + " JS to " + getHost(u))
+	} else {
+		fmt.Println(strconv.Itoa(len(resultJsHost)+len(resultJsOther)) + " JS to " + d)
+	}
 	for _, j := range resultJsHost {
-
 		if len(j) == 3 {
 			if strings.HasPrefix(j[1], "2") {
-				color.Green("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j[0]) + color.LightGreen.Sprintf(" [ status: %s, size: %s ]\n", j[1], j[2]))
 			} else if strings.HasPrefix(j[1], "3") {
-				color.Yellow("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j[0]) + color.LightYellow.Sprintf(" [ status: %s, size: %s ]\n", j[1], j[2]))
 			} else {
-				color.Red("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j[0]) + color.LightRed.Sprintf(" [ status: %s, size: %s ]\n", j[1], j[2]))
 			}
 		} else if len(j) == 2 {
-			color.Red("%-"+jlen+"s [status: %s, size: 0]", j[0], j[1])
+			fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j[0]) + color.LightRed.Sprintf(" [ status: %s, size: 0 ]\n", j[1]))
 		} else if s == "" {
-			fmt.Println(j[0])
+			fmt.Printf(color.LightBlue.Sprintf(j[0]) + "\n")
 		}
 	}
-	fmt.Println("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other")
+	if d == "" {
+		fmt.Println("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other")
+	}
 	for _, j := range resultJsOther {
 		if len(j) == 3 {
 			if strings.HasPrefix(j[1], "2") {
-				color.Green("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j[0]) + color.LightGreen.Sprintf(" [ status: %s, size: %s ]\n", j[1], j[2]))
 			} else if strings.HasPrefix(j[1], "3") {
-				color.Yellow("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j[0]) + color.LightYellow.Sprintf(" [ status: %s, size: %s ]\n", j[1], j[2]))
 			} else {
-				color.Red("%-"+jlen+"s [status: %s, size: %s]", j[0], j[1], j[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j[0]) + color.LightRed.Sprintf(" [ status: %s, size: %s ]\n", j[1], j[2]))
 			}
 		} else if len(j) == 2 {
-			color.Red("%-"+jlen+"s [status: %s, size: 0]", j[0], j[1])
+			fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j[0]) + color.LightRed.Sprintf(" [ status: %s, size: 0 ]\n", j[1]))
 		} else if s == "" {
-			fmt.Println(j[0])
+			fmt.Printf(color.LightBlue.Sprintf(j[0]) + "\n")
 		}
 	}
 
@@ -384,52 +413,64 @@ func print() {
 	}
 	//抓取的域名优先排序
 	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
-	fmt.Println(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u))
+
+	if d == "" {
+		fmt.Println(strconv.Itoa(len(resultUrlHost)) + " URL to " + getHost(u))
+	} else {
+		fmt.Println(strconv.Itoa(len(resultUrlHost)+len(resultUrlOther)) + " URL to " + d)
+	}
+
 	for _, u := range resultUrlHost {
 		if len(u) == 4 {
-			if strings.HasPrefix(u[1], "2") {
-				color.Green("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+			if strings.HasPrefix(u[1], "0") {
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ %s ]\n", u[3]))
+			} else if strings.HasPrefix(u[1], "2") {
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
 			} else if strings.HasPrefix(u[1], "3") {
-				color.Yellow("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightYellow.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
 			} else {
-				color.Red("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
 			}
 		} else if len(u) == 3 {
 			if strings.HasPrefix(u[1], "2") {
-				color.Green("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
 			} else if strings.HasPrefix(u[1], "3") {
-				color.Yellow("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightYellow.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
 			} else {
-				color.Red("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
 			}
 		} else if len(u) == 2 {
-			color.Red("%-"+ulen+"s [status: %s, size: 0]", u[0], u[1])
+			fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: 0 ]\n", u[1]))
 		} else if s == "" {
-			fmt.Println(u[0])
+			fmt.Printf(color.LightBlue.Sprintf(u[0]) + "\n")
 		}
 	}
-	fmt.Println("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other")
+	if d == "" {
+		fmt.Println("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other")
+	}
 	for _, u := range resultUrlOther {
 		if len(u) == 4 {
-			if strings.HasPrefix(u[1], "2") {
-				color.Green("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+			if strings.HasPrefix(u[1], "0") {
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ %s ]\n", u[3]))
+			} else if strings.HasPrefix(u[1], "2") {
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
 			} else if strings.HasPrefix(u[1], "3") {
-				color.Yellow("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightYellow.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
 			} else {
-				color.Red("%-"+ulen+"s [status: %s, size: %s, title: %s]", u[0], u[1], u[2], u[3])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
 			}
 		} else if len(u) == 3 {
 			if strings.HasPrefix(u[1], "2") {
-				color.Green("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
 			} else if strings.HasPrefix(u[1], "3") {
-				color.Yellow("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightYellow.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
 			} else {
-				color.Red("%-"+ulen+"s [status: %s, size: %s]", u[0], u[1], u[2])
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
 			}
 		} else if len(u) == 2 {
-			color.Red("%-"+ulen+"s [status: %s, size: 0]", u[0], u[1])
+			fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: 0 ]\n", u[1]))
 		} else if s == "" {
-			fmt.Println(u[0])
+			fmt.Printf(color.LightBlue.Sprintf(u[0]) + "\n")
 		}
 	}
 }
@@ -446,6 +487,13 @@ func spider(ur string, is bool) {
 	url, _ := url.QueryUnescape(ur)
 	if getEndUrl(url) {
 		return
+	}
+	if m == 3 {
+		for _, v := range risks {
+			if strings.Contains(url, v) {
+				return
+			}
+		}
 	}
 	appendEndUrl(url)
 	tr := &http.Transport{
@@ -522,26 +570,26 @@ func jsFind(cont, host, scheme, path string, is bool) {
 			}
 			if strings.HasPrefix(js[0], "https:") || strings.HasPrefix(js[0], "http:") {
 				appendJs(js[0], host+path)
-				if is || m == 2 {
+				if is || m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(js[0], false)
 				}
 			} else if strings.HasPrefix(js[0], "//") {
 				appendJs(scheme+":"+js[0], host+path)
-				if is || m == 2 {
+				if is || m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(scheme+":"+js[0], false)
 				}
 
 			} else if strings.HasPrefix(js[0], "/") {
 				appendJs(host+js[0], host+path)
-				if is || m == 2 {
+				if is || m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(host+js[0], false)
 				}
 			} else {
 				appendJs(host+cata+js[0], host+path)
-				if is || m == 2 {
+				if is || m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(host+cata+js[0], false)
 				}
@@ -581,32 +629,32 @@ func urlFind(cont, host, scheme, path string, is bool) {
 				continue
 			}
 			if strings.HasPrefix(url[0], "https:") || strings.HasPrefix(url[0], "http:") {
-				appendUrl(url[0])
-				if is && m == 2 {
+				appendUrl(url[0], host+path)
+				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(url[0], false)
 				}
 			} else if strings.HasPrefix(url[0], "//") {
-				appendUrl(scheme + ":" + url[0])
-				if is && m == 2 {
+				appendUrl(scheme+":"+url[0], host+path)
+				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(scheme+":"+url[0], false)
 				}
 			} else if strings.HasPrefix(url[0], "/") {
-				appendUrl(host + url[0])
-				if is && m == 2 {
+				appendUrl(host+url[0], host+path)
+				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(host+url[0], false)
 				}
 			} else if !strings.HasSuffix(path, ".js") {
-				appendUrl(host + cata + url[0])
-				if is && m == 2 {
+				appendUrl(host+cata+url[0], host+path)
+				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(host+cata+url[0], false)
 				}
 			} else if strings.HasSuffix(host+path, ".js") {
-				appendUrl(jsinurl[host+path] + url[0])
-				if is && m == 2 {
+				appendUrl(jsinurl[host+path]+url[0], host+path)
+				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(jsinurl[host+path]+url[0], false)
 				}
@@ -622,7 +670,7 @@ func jsFilter(str [][]string) [][]string {
 
 	//对不需要的数据过滤
 	for i := range str {
-		str[i][0] = str[i][1]
+		str[i][0], _ = url.QueryUnescape(str[i][1])
 		str[i][0] = strings.Replace(str[i][0], " ", "", -1)
 		str[i][0] = strings.Replace(str[i][0], "\\/", "/", -1)
 		str[i][0] = strings.Replace(str[i][0], "%3A", ":", -1)
@@ -649,7 +697,7 @@ func urlFilter(str [][]string) [][]string {
 
 	//对不需要的数据过滤
 	for i := range str {
-		str[i][0] = str[i][1]
+		str[i][0], _ = url.QueryUnescape(str[i][1])
 		str[i][0] = strings.Replace(str[i][0], " ", "", -1)
 		str[i][0] = strings.Replace(str[i][0], "\\/", "/", -1)
 		str[i][0] = strings.Replace(str[i][0], "%3A", ":", -1)
@@ -688,6 +736,15 @@ func jsState(u string, i int) {
 		resultJs[i][0] = u
 		return
 	}
+	if m == 3 {
+		for _, v := range risks {
+			if strings.Contains(u, v) {
+				resultJs[i] = []string{u, "", "", "", "疑似危险路由"}
+				return
+			}
+		}
+	}
+
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -728,7 +785,7 @@ func jsState(u string, i int) {
 		}
 		resultJs[i] = []string{u, strconv.Itoa(code), strconv.Itoa(length)}
 	} else {
-		resultUrl[i][0] = ""
+		resultJs[i][0] = ""
 	}
 }
 
@@ -740,6 +797,15 @@ func urlState(u string, i int) {
 		resultUrl[i][0] = u
 		return
 	}
+	if m == 3 {
+		for _, v := range risks {
+			if strings.Contains(u, v) {
+				resultUrl[i] = []string{u, "0", "0", "疑似危险路由，已跳过验证"}
+				return
+			}
+		}
+	}
+
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -790,7 +856,7 @@ func urlState(u string, i int) {
 	}
 }
 
-func appendJs(url string, urltojs string) {
+func appendJs(url string, urltjs string) {
 	lock.Lock()
 	defer lock.Unlock()
 	for _, eachItem := range resultJs {
@@ -799,17 +865,20 @@ func appendJs(url string, urltojs string) {
 		}
 	}
 	resultJs = append(resultJs, []string{url})
-	if strings.HasSuffix(urltojs, ".js") {
-		jsinurl[url] = jsinurl[urltojs]
+	if strings.HasSuffix(urltjs, ".js") {
+		jsinurl[url] = jsinurl[urltjs]
 	} else {
 		re := regexp.MustCompile("[a-zA-z]+://[^\\s]*/|[a-zA-z]+://[^\\s]*")
-		u := re.FindAllStringSubmatch(urltojs, -1)
+		u := re.FindAllStringSubmatch(urltjs, -1)
 		jsinurl[url] = u[0][0]
+	}
+	if o != "" {
+		jstourl[url] = urltjs
 	}
 
 }
 
-func appendUrl(url string) {
+func appendUrl(url string, urlturl string) {
 	lock.Lock()
 	defer lock.Unlock()
 	for _, eachItem := range resultUrl {
@@ -818,9 +887,10 @@ func appendUrl(url string) {
 		}
 	}
 	resultUrl = append(resultUrl, []string{url})
-
+	if o != "" {
+		urltourl[url] = urlturl
+	}
 }
-
 func appendEndUrl(url string) {
 	lock.Lock()
 	defer lock.Unlock()
@@ -860,7 +930,7 @@ func SelectSort(arr [][]string) [][]string {
 	length := len(arr)
 	var sort []int
 	for _, v := range arr {
-		if v[0] == "" || v[1] == "timeout" {
+		if v[0] == "" || len(v) == 1 || v[1] == "timeout" {
 			sort = append(sort, 999)
 		} else {
 			in, _ := strconv.Atoi(v[1])
@@ -896,16 +966,17 @@ func urlDispose(arr [][]string, url, host string) ([][]string, [][]string) {
 			urls = append(urls, v)
 		} else {
 			if strings.Contains(v[0], host) {
-				urlts = append(urls, v)
+				urlts = append(urlts, v)
 			} else {
 				other = append(other, v)
 			}
 		}
-
 	}
+
 	for _, v := range urlts {
 		urls = append(urls, v)
 	}
+
 	return RemoveRepeatElement(urls), RemoveRepeatElement(other)
 }
 
@@ -952,6 +1023,12 @@ func RemoveRepeatElement(list [][]string) [][]string {
 	var list2 [][]string
 	index := 0
 	for _, v := range list {
+
+		//处理-d参数
+		if d != "" {
+			v[0] = domainNameFilter(v[0])
+		}
+
 		if len(v[0]) > 10 {
 			re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
 			hosts := re.FindAllString(v[0], 1)
@@ -1001,4 +1078,26 @@ func SetHeadersConfig(header http.Header) http.Header {
 		header.Add(k, v)
 	}
 	return header
+}
+
+//处理-d
+func domainNameFilter(url string) string {
+	re := regexp.MustCompile("://([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
+	hosts := re.FindAllString(url, 1)
+	if len(hosts) != 0 {
+		if !strings.Contains(hosts[0], d) {
+			url = ""
+		}
+	}
+	return url
+}
+
+//打印进度
+func printProgress() {
+	num := len(resultJs) + len(resultUrl)
+	fmt.Printf("\rValidate %.0f%%", float64(progress+1)/float64(num+1)*100)
+	mux.Lock()
+	progress++
+	mux.Unlock()
+
 }
