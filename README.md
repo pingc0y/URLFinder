@@ -11,6 +11,7 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 
 有什么需求或bug欢迎各位师傅提交lssues  
 
+
 ## 功能说明
 1.提取页面与JS中的JS及URL链接（页面URL最多深入一层，防止抓偏）  
 2.提取到的链接会显示状态码、响应大小、标题等（带cookie操作时请使用-m 3 安全模式，防止误操作）  
@@ -24,9 +25,9 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 结果会优先显示200，按从小到大排序（输入的域名最优先，就算是404也会排序在其他子域名的200前面）
 
 ## 使用截图
-单url截图  
+单url截图（旧版截图）  
 [![jagnp9.png](https://s1.ax1x.com/2022/08/19/vr0G1P.png)](https://s1.ax1x.com/2022/08/19/vr0G1P.png)  
-批量url截图  
+批量url截图  （旧版截图）
 [![vRqHrd.png](https://s1.ax1x.com/2022/08/27/vRqHrd.png)](https://s1.ax1x.com/2022/08/27/vRqHrd.png)  
 [![vRqbqA.png](https://s1.ax1x.com/2022/08/27/vRqbqA.png)](https://s1.ax1x.com/2022/08/27/vRqbqA.png)  
 
@@ -43,7 +44,7 @@ URLFinder.exe -s all -m 2 -f url.txt -o d:/
 ```
 参数：  
 ```
--h  帮助信息
+-h  帮助信息 （可以看到当前版本更新日期）
 -u  目标URL  
 -d  指定获取的域名
 -a  自定义user-agent请求头  
@@ -101,6 +102,10 @@ SET GOARCH=386
 go build -ldflags "-s -w" -o URLFinder-macos32 main.go
 ```
 ## 更新说明  
+2022/9/23  
+新增 对base标签的兼容  
+修复 正则bug  
+
 2022/9/16  
 新增 -m 3 安全的深入抓取，过滤delete、remove等危险URL   
 新增 -d 获取指定域名资源  

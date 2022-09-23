@@ -81,7 +81,7 @@ func init() {
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/16  by pingc
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/23  by pingc
 Usage: URLFinder [-h help] [-u url] [-d domainName] [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status] [-i configFile]
 
 Options:
@@ -179,7 +179,7 @@ func start(u string) {
 	}
 }
 
-//导出
+// 导出
 func outFile() {
 	//获取域名
 	var host string
@@ -331,7 +331,7 @@ func outFile() {
 	return
 }
 
-//打印
+// 打印
 func print() {
 
 	//获取域名
@@ -475,7 +475,7 @@ func print() {
 	}
 }
 
-//蜘蛛抓取页面内容
+// 蜘蛛抓取页面内容
 func spider(ur string, is bool) {
 	fmt.Printf("\rSpider %d", progress)
 	mux.Lock()
@@ -531,19 +531,33 @@ func spider(ur string, is bool) {
 	path := response.Request.URL.Path
 	host := response.Request.URL.Host
 	scheme := response.Request.URL.Scheme
+	source := scheme + "://" + host + path
 
 	//字节数组 转换成 字符串
 	result := string(dataBytes)
+	//处理base标签
+	re := regexp.MustCompile("base.{1,5}href.{1,5}(http.+?//[^\\s]+?)[\",',‘,“]")
+	base := re.FindAllStringSubmatch(result, -1)
+	if len(base) > 0 {
+		host = regexp.MustCompile("http.*?//([^/]+)").FindAllStringSubmatch(base[0][1], -1)[0][1]
+		scheme = regexp.MustCompile("(http.*?)://").FindAllStringSubmatch(base[0][1], -1)[0][1]
+		paths := regexp.MustCompile("http.*?//.*?(/.*)").FindAllStringSubmatch(base[0][1], -1)
+		if len(paths) > 0 {
+			path = paths[0][1]
+		} else {
+			path = "/"
+		}
+	}
 
 	//提取js
-	jsFind(result, host, scheme, path, is)
+	jsFind(result, host, scheme, path, source, is)
 	//提取url
-	urlFind(result, host, scheme, path, is)
+	urlFind(result, host, scheme, path, source, is)
 
 }
 
-//分析内容中的js
-func jsFind(cont, host, scheme, path string, is bool) {
+// 分析内容中的js
+func jsFind(cont, host, scheme, path, source string, is bool) {
 	var cata string
 	care := regexp.MustCompile("/.*/{1}|/")
 	catae := care.FindAllString(path, -1)
@@ -554,9 +568,9 @@ func jsFind(cont, host, scheme, path string, is bool) {
 	}
 	//js匹配正则
 	res := []string{
-		".(http[^\\s,^',^’,^\",^”,^>,^<,^;,^(,^),^\\|,^\\*,^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^<,^:,^;,^\\*,^\\|,^(,^),^\\[]{5}[.]js)",
-		"[\",',‘,“]\\s{0,6}(/{0,1}[^\\s,^',^’,^\",^”,^\\|,^>,^<,^:,^;,^\\*,^(,^),^\\[]2,250}?[^=,^\\*,^\\s,^',^’,^\\|,^\",^”,^>,^<,^:,^;,^\\*,^(,^),^\\[]{5}[.]js)",
-		"=\\s{0,6}[\",',’,”]{0,1}\\s{0,6}(/{0,1}[^\\s,^',^’,^\",^”,^\\|,^>,^<,^;,^\\*,^(,^),^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^\\|,^<,^:,^;,^\\*,^(,^),^\\[]{5}[.]js)",
+		".(http[^\\s,^',^’,^\",^”,^>,^<,^;,^\\(,^),^\\|,^\\*,^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^<,^:,^;,^\\*,^\\|,^\\(,^),^\\[]{3}[.]js)",
+		"[\",',‘,“]\\s{0,6}(/{0,1}[^\\s,^',^’,^\",^”,^\\|,^>,^<,^:,^;,^\\*,^\\(,^\\),^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\\|,^\",^”,^>,^<,^:,^;,^\\*,^\\(,^),^\\[]{3}[.]js)",
+		"=\\s{0,6}[\",',’,”]{0,1}\\s{0,6}(/{0,1}[^\\s,^',^’,^\",^”,^\\|,^>,^<,^;,^\\*,^\\(,^),^\\[]{2,250}?[^=,^\\*,^\\s,^',^’,^\",^”,^>,^\\|,^<,^:,^;,^\\*,^\\(,^),^\\[]{3}[.]js)",
 	}
 	host = scheme + "://" + host
 	for _, re := range res {
@@ -569,26 +583,26 @@ func jsFind(cont, host, scheme, path string, is bool) {
 				continue
 			}
 			if strings.HasPrefix(js[0], "https:") || strings.HasPrefix(js[0], "http:") {
-				appendJs(js[0], host+path)
+				appendJs(js[0], source)
 				if is || m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(js[0], false)
 				}
 			} else if strings.HasPrefix(js[0], "//") {
-				appendJs(scheme+":"+js[0], host+path)
+				appendJs(scheme+":"+js[0], source)
 				if is || m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(scheme+":"+js[0], false)
 				}
 
 			} else if strings.HasPrefix(js[0], "/") {
-				appendJs(host+js[0], host+path)
+				appendJs(host+js[0], source)
 				if is || m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(host+js[0], false)
 				}
 			} else {
-				appendJs(host+cata+js[0], host+path)
+				appendJs(host+cata+js[0], source)
 				if is || m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(host+cata+js[0], false)
@@ -600,8 +614,8 @@ func jsFind(cont, host, scheme, path string, is bool) {
 
 }
 
-//分析内容中的url
-func urlFind(cont, host, scheme, path string, is bool) {
+// 分析内容中的url
+func urlFind(cont, host, scheme, path, source string, is bool) {
 	var cata string
 	care := regexp.MustCompile("/.*/{1}|/")
 	catae := care.FindAllString(path, -1)
@@ -614,10 +628,10 @@ func urlFind(cont, host, scheme, path string, is bool) {
 
 	//url匹配正则
 	res := []string{
-		"[\",',‘,“]\\s{0,6}(http[^\\s,^',^’,^\",^”,^>,^<,^),^(]{2,250}?)\\s{0,6}[\",',‘,“]",
-		"=\\s{0,6}(http[^\\s,^',^’,^\",^”,^>,^<,^),^(]{2,250})",
-		"[\",',‘,“]\\s{0,6}(#{0,1}/[^\\s,^',^’,^\",^”,^>,^<,^\\:,^),^(]{2,250}?)\\s{0,6}[\",',‘,“]",
-		"href\\s{0,6}=\\s{0,6}[\",',‘,“]{0,1}\\s{0,6}([^\\s,^',^’,^\",^“,^>,^<,^),^(]{2,250})|action\\s{0,6}=\\s{0,6}[\",',‘,“]{0,1}\\s{0,6}([^\\s,^',^’,^\",^“,^>,^<,^),^(]{2,250})",
+		"[\",',‘,“]\\s{0,6}(http[^\\s,^',^’,^\",^”,^>,^<,^),^\\(]{2,250}?)\\s{0,6}[\",',‘,“]",
+		"=\\s{0,6}(http[^\\s,^',^’,^\",^”,^>,^<,^),^\\(]{2,250})",
+		"[\",',‘,“]\\s{0,6}(#{0,1}/[^\\s,^',^’,^\",^”,^>,^<,^\\:,^),^\\(]{2,250}?)\\s{0,6}[\",',‘,“]",
+		"href\\s{0,6}=\\s{0,6}[\",',‘,“]{0,1}\\s{0,6}([^\\s,^',^’,^\",^“,^>,^<,^),^\\(]{2,250})|action\\s{0,6}=\\s{0,6}[\",',‘,“]{0,1}\\s{0,6}([^\\s,^',^’,^\",^“,^>,^<,^),^\\(]{2,250})",
 	}
 	for _, re := range res {
 		re := regexp.MustCompile(re)
@@ -629,31 +643,31 @@ func urlFind(cont, host, scheme, path string, is bool) {
 				continue
 			}
 			if strings.HasPrefix(url[0], "https:") || strings.HasPrefix(url[0], "http:") {
-				appendUrl(url[0], host+path)
+				appendUrl(url[0], source)
 				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(url[0], false)
 				}
 			} else if strings.HasPrefix(url[0], "//") {
-				appendUrl(scheme+":"+url[0], host+path)
+				appendUrl(scheme+":"+url[0], source)
 				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(scheme+":"+url[0], false)
 				}
 			} else if strings.HasPrefix(url[0], "/") {
-				appendUrl(host+url[0], host+path)
+				appendUrl(host+url[0], source)
 				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(host+url[0], false)
 				}
-			} else if !strings.HasSuffix(path, ".js") {
-				appendUrl(host+cata+url[0], host+path)
+			} else if !strings.HasSuffix(source, ".js") {
+				appendUrl(host+cata+url[0], source)
 				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(host+cata+url[0], false)
 				}
-			} else if strings.HasSuffix(host+path, ".js") {
-				appendUrl(jsinurl[host+path]+url[0], host+path)
+			} else if strings.HasSuffix(source, ".js") {
+				appendUrl(jsinurl[host+path]+url[0], source)
 				if is && m == 2 || m == 3 {
 					wg.Add(1)
 					go spider(jsinurl[host+path]+url[0], false)
@@ -665,7 +679,7 @@ func urlFind(cont, host, scheme, path string, is bool) {
 
 }
 
-//过滤JS
+// 过滤JS
 func jsFilter(str [][]string) [][]string {
 
 	//对不需要的数据过滤
@@ -692,7 +706,7 @@ func jsFilter(str [][]string) [][]string {
 
 }
 
-//过滤URL
+// 过滤URL
 func urlFilter(str [][]string) [][]string {
 
 	//对不需要的数据过滤
@@ -728,7 +742,7 @@ func urlFilter(str [][]string) [][]string {
 	return str
 }
 
-//检测js访问状态码
+// 检测js访问状态码
 func jsState(u string, i int) {
 	defer wg.Done()
 	defer printProgress()
@@ -789,7 +803,7 @@ func jsState(u string, i int) {
 	}
 }
 
-//检测url访问状态码
+// 检测url访问状态码
 func urlState(u string, i int) {
 	defer wg.Done()
 	defer printProgress()
@@ -925,7 +939,7 @@ func IsDir(path string) bool {
 	return s.IsDir()
 }
 
-//对结果进行状态码排序
+// 对结果进行状态码排序
 func SelectSort(arr [][]string) [][]string {
 	length := len(arr)
 	var sort []int
@@ -956,7 +970,7 @@ func SelectSort(arr [][]string) [][]string {
 	}
 }
 
-//对结果进行URL排序
+// 对结果进行URL排序
 func urlDispose(arr [][]string, url, host string) ([][]string, [][]string) {
 	var urls [][]string
 	var urlts [][]string
@@ -980,7 +994,7 @@ func urlDispose(arr [][]string, url, host string) ([][]string, [][]string) {
 	return RemoveRepeatElement(urls), RemoveRepeatElement(other)
 }
 
-//提取顶级域名
+// 提取顶级域名
 func getHost(u string) string {
 
 	re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
@@ -1016,7 +1030,7 @@ func getHost(u string) string {
 	return host
 }
 
-//去重+去除错误url
+// 去重+去除错误url
 func RemoveRepeatElement(list [][]string) [][]string {
 	// 创建一个临时map用来存储数组元素
 	temp := make(map[string]bool)
@@ -1030,7 +1044,7 @@ func RemoveRepeatElement(list [][]string) [][]string {
 		}
 
 		if len(v[0]) > 10 {
-			re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
+			re := regexp.MustCompile("://([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
 			hosts := re.FindAllString(v[0], 1)
 			if len(hosts) != 0 {
 				// 遍历数组元素，判断此元素是否已经存在map中
@@ -1047,7 +1061,7 @@ func RemoveRepeatElement(list [][]string) [][]string {
 	return list2
 }
 
-//读取配置文件
+// 读取配置文件
 func GetConfig(path string) {
 	con := &config{}
 	if f, err := os.Open(path); err != nil {
@@ -1072,7 +1086,7 @@ func GetConfig(path string) {
 	}
 }
 
-//处理配置
+// 处理配置
 func SetHeadersConfig(header http.Header) http.Header {
 	for k, v := range conf.Headers {
 		header.Add(k, v)
@@ -1080,7 +1094,7 @@ func SetHeadersConfig(header http.Header) http.Header {
 	return header
 }
 
-//处理-d
+// 处理-d
 func domainNameFilter(url string) string {
 	re := regexp.MustCompile("://([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
 	hosts := re.FindAllString(url, 1)
@@ -1092,7 +1106,7 @@ func domainNameFilter(url string) string {
 	return url
 }
 
-//打印进度
+// 打印进度
 func printProgress() {
 	num := len(resultJs) + len(resultUrl)
 	fmt.Printf("\rValidate %.0f%%", float64(progress+1)/float64(num+1)*100)
