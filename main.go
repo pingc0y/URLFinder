@@ -3,10 +3,9 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/gookit/color"
-	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -17,6 +16,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gookit/color"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -42,6 +44,53 @@ var (
 	urltourl  map[string]string
 )
 
+// Moryyi: 用来存储通过 -F 传入的所有 format 格式
+type formatArgumentFlags []string
+
+func (f *formatArgumentFlags) String() string {
+	return ""
+}
+
+func (f *formatArgumentFlags) Set(value string) error {
+	*f = append(*f, value)
+	return nil
+}
+
+func (f *formatArgumentFlags) Contains(value string) bool {
+	for _, v := range *f {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
+// Moryyi: 用来输出 JSON 格式结果的 struct
+type JsonResult struct {
+	FoundJsLinks struct {
+		ToHost  UrlData `json:"toHost"`
+		ToOther UrlData `json:"toOther"`
+	} `json:"foundJsLinks"`
+	FoundURLLinks struct {
+		ToHost  UrlData `json:"toHost"`
+		ToOther UrlData `json:"toOther"`
+	} `json:"foundUrlLinks"`
+}
+
+type UrlData struct {
+	Host  string    `json:"host"`
+	Count string    `json:"count"`
+	Data  []UrlInfo `json:"data"`
+}
+
+type UrlInfo struct {
+	URL    string `json:"url"`
+	Status string `json:"status"`
+	Size   string `json:"size"`
+	Title  string `json:"title"`
+	Source string `json:"source"`
+}
+
 var (
 	Green  = color.Style{color.LightYellow}.Render
 	Blue   = color.Style{color.LightBlue}.Render
@@ -49,16 +98,17 @@ var (
 	Yellow = color.Style{color.LightYellow}.Render
 )
 var (
-	h bool
-	I bool
-	m int
-	s string
-	u string
-	d string
-	c string
-	a string
-	f string
-	o string
+	h            bool
+	I            bool
+	m            int
+	s            string
+	u            string
+	d            string
+	c            string
+	a            string
+	f            string
+	o            string
+	outputFormat formatArgumentFlags
 )
 
 var (
@@ -75,6 +125,7 @@ func init() {
 	flag.StringVar(&o, "o", "", "set outFile")
 	flag.StringVar(&a, "a", "", "set user-agent")
 	flag.StringVar(&s, "s", "", "set status")
+	flag.Var(&outputFormat, "F", "set output format, active if -o was set\navailable formats are: csv(default), json")
 	flag.IntVar(&m, "m", 1, "set mode \n   1  normal \n   2  thorough \n   3  security \n")
 
 	// 改变默认的 Usage
@@ -82,7 +133,7 @@ func init() {
 }
 func usage() {
 	fmt.Fprintf(os.Stderr, `URLFinder 2022/9/23  by pingc
-Usage: URLFinder [-h help] [-u url] [-d domainName] [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status] [-i configFile]
+Usage: URLFinder [-h help] [-u url] [-d domainName] [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile [-F format]] [-s status] [-i configFile]
 
 Options:
 `)
@@ -172,15 +223,22 @@ func start(u string) {
 	fmt.Println("\rValidate OK     ")
 
 	//打印还是输出
+	for _, format := range outputFormat {
+		fmt.Println(format)
+	}
 	if len(o) > 0 {
-		outFile()
+		if outputFormat.Contains("json") {
+			outFile_Json()
+		}
+		// Moryyi: "-F csv" 作为默认参数，当"-o"设置时一定会触发
+		outFile_Csv()
 	} else {
 		print()
 	}
 }
 
-// 导出
-func outFile() {
+// 导出CSV格式结果
+func outFile_Csv() {
 	//获取域名
 	var host string
 	re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
@@ -325,6 +383,179 @@ func outFile() {
 	}
 
 	writer.Flush() //内容是先写到缓存对，所以需要调用flush将缓存对数据真正写到文件中
+
+	fmt.Println(strconv.Itoa(len(resultJsHost)+len(resultJsOther))+"JS + "+strconv.Itoa(len(resultUrlHost)+len(resultUrlOther))+"URL --> ", file.Name())
+
+	return
+}
+
+// 导出JSON格式结果
+func outFile_Json() {
+	//获取域名
+	var host string
+	re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
+	hosts := re.FindAllString(u, 1)
+	if len(hosts) == 0 {
+		host = u
+	} else {
+		host = hosts[0]
+	}
+
+	//抓取的域名优先排序
+	if s != "" {
+		resultUrl = SelectSort(resultUrl)
+		resultJs = SelectSort(resultJs)
+	}
+	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
+	resultUrlHost, resultUrlOther := urlDispose(resultUrl, host, getHost(u))
+	//输出到文件
+	if strings.Contains(host, ":") {
+		host = strings.Replace(host, ":", "：", -1)
+	}
+	file, err := os.OpenFile(o+"/"+host+".json", os.O_CREATE|os.O_WRONLY, os.ModePerm)
+
+	// Moryyi: create JSON object to represent all those results
+	var (
+		size        string
+		status      string
+		title       string
+		jsonResults JsonResult
+	)
+
+	// 1. fill data into "foundJsLinks.toHost"
+	if d == "" {
+		jsonResults.FoundJsLinks.ToHost.Host = getHost(u)
+		jsonResults.FoundJsLinks.ToHost.Count = strconv.Itoa(len(resultJsHost))
+	} else {
+		jsonResults.FoundJsLinks.ToHost.Host = d
+		jsonResults.FoundJsLinks.ToHost.Count = strconv.Itoa(len(resultJsHost) + len(resultJsOther))
+	}
+
+	for _, j := range resultJsHost {
+		if len(j) == 3 {
+			status = j[1]
+			size = j[2]
+		} else if len(j) == 2 {
+			status = j[1]
+			size = ""
+		} else {
+			status = ""
+			size = ""
+		}
+		var urlInfo UrlInfo
+		urlInfo.URL = j[0]
+		urlInfo.Status = status
+		urlInfo.Size = size
+		urlInfo.Title = ""
+		urlInfo.Source = jstourl[j[0]]
+		jsonResults.FoundJsLinks.ToHost.Data = append(jsonResults.FoundJsLinks.ToHost.Data, urlInfo)
+	}
+
+	// 2. fill data into "foundJsLinks.toOther"
+	if d == "" {
+		jsonResults.FoundJsLinks.ToOther.Host = "other"
+		jsonResults.FoundJsLinks.ToOther.Count = strconv.Itoa(len(resultJsOther))
+	}
+
+	for _, j := range resultJsOther {
+		if len(j) == 3 {
+			status = j[1]
+			size = j[2]
+			title = ""
+		} else if len(j) == 2 {
+			status = j[1]
+			size = ""
+			title = ""
+		} else {
+			status = ""
+			size = ""
+			title = ""
+		}
+		var urlInfo UrlInfo
+		urlInfo.URL = j[0]
+		urlInfo.Status = status
+		urlInfo.Size = size
+		urlInfo.Title = title
+		urlInfo.Source = jstourl[j[0]]
+		jsonResults.FoundJsLinks.ToHost.Data = append(jsonResults.FoundJsLinks.ToHost.Data, urlInfo)
+	}
+
+	// 3. fill data into "foundUrlLinks.toHost"
+	if d == "" {
+		jsonResults.FoundURLLinks.ToHost.Host = getHost(u)
+		jsonResults.FoundURLLinks.ToHost.Count = strconv.Itoa(len(resultUrlHost))
+	} else {
+		jsonResults.FoundURLLinks.ToHost.Host = d
+		jsonResults.FoundURLLinks.ToHost.Count = strconv.Itoa(len(resultUrlHost) + len(resultUrlOther))
+	}
+
+	for _, u := range resultUrlHost {
+		if len(u) == 4 {
+			status = u[1]
+			size = u[2]
+			title = u[3]
+		} else if len(u) == 3 {
+			status = u[1]
+			size = u[2]
+			title = ""
+		} else if len(u) == 2 {
+			status = u[1]
+			size = ""
+			title = ""
+		} else {
+			status = ""
+			size = ""
+			title = ""
+		}
+		var urlInfo UrlInfo
+		urlInfo.URL = u[0]
+		urlInfo.Status = status
+		urlInfo.Size = size
+		urlInfo.Title = title
+		urlInfo.Source = urltourl[u[0]]
+		jsonResults.FoundURLLinks.ToHost.Data = append(jsonResults.FoundURLLinks.ToHost.Data, urlInfo)
+	}
+
+	// 4. fill data into "foundUrlLinks.toOther"
+	if d == "" {
+		jsonResults.FoundURLLinks.ToOther.Host = "other"
+		jsonResults.FoundURLLinks.ToOther.Count = strconv.Itoa(len(resultUrlOther))
+	}
+
+	for _, u := range resultUrlOther {
+		if len(u) == 4 {
+			status = u[1]
+			size = u[2]
+			title = u[3]
+		} else if len(u) == 3 {
+			status = u[1]
+			size = u[2]
+			title = ""
+		} else if len(u) == 2 {
+			status = u[1]
+			size = ""
+			title = ""
+		} else {
+			status = ""
+			size = ""
+			title = ""
+		}
+		var urlInfo UrlInfo
+		urlInfo.URL = u[0]
+		urlInfo.Status = status
+		urlInfo.Size = size
+		urlInfo.Title = title
+		urlInfo.Source = urltourl[u[0]]
+		jsonResults.FoundURLLinks.ToHost.Data = append(jsonResults.FoundURLLinks.ToHost.Data, urlInfo)
+	}
+
+	jsonOut, err := json.Marshal(jsonResults)
+	if err != nil {
+		panic(err)
+	}
+
+	// fmt.Println(jsonOut)
+	file.WriteString(string(jsonOut))
 
 	fmt.Println(strconv.Itoa(len(resultJsHost)+len(resultJsOther))+"JS + "+strconv.Itoa(len(resultUrlHost)+len(resultUrlOther))+"URL --> ", file.Name())
 
