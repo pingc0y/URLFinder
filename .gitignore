@@ -1,2 +1,5 @@
 URLFinder-*
 build.bat
+
+go.sum
+go.mod
