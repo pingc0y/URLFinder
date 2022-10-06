@@ -1,7 +1,7 @@
 # URLFinder
-URLFinder是一款用于快速提取检测页面中JS与URL的工具  
+URLFinder是一款快速提取检测页面中JS与URL的工具  
 
-通常用于快速查找隐藏在页面或js中的敏感或未授权api接口  
+通常用于查找隐藏在页面或js中的敏感或未授权api接口  
 
 功能类似于JSFinder，开发由来就是使用它的时候经常返回空或链接不全，作者还不更新修bug，那就自己来咯  
 
@@ -15,11 +15,12 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 ## 功能说明
 1.提取页面与JS中的JS及URL链接（页面URL最多深入一层，防止抓偏）  
 2.提取到的链接会显示状态码、响应大小、标题等（带cookie操作时请使用-m 3 安全模式，防止误操作）  
-3.支持配置Headers请求头  
+3.支持yml配置Headers请求头、代理  
 4.支持提取批量URL  
 5.支持结果导出到csv文件  
 6.支持指定抓取域名  
 7.记录抓取来源，便于手动分析   
+8.支持设置http代理  
 
 结果会优先显示输入的url顶级域名，其他域名不做区分显示在 other  
 结果会优先显示200，按从小到大排序（输入的域名最优先，就算是404也会排序在其他子域名的200前面）
@@ -55,6 +56,7 @@ URLFinder.exe -s all -m 2 -f url.txt -o d:/
         3  安全深入抓取（过滤delete，remove等敏感路由）
 -c  添加cookie  
 -i  加载yaml配置文件（不存在时，会在当前目录创建一个默认yaml配置文件）  
+-x  设置http代理,格式: http://127.0.0.1:8877|username:password （无需身份验证就不写后半部分）
 -f  批量url抓取，需指定url文本路径  
 -o  结果导出到csv文件，需指定导出文件目录（.代表当前目录）
 ```
@@ -67,41 +69,45 @@ windows
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o URLFinder-windows64.exe main.go
+go build -ldflags "-s -w" -o URLFinder-windows64.exe
 
 #32位
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=386
-go build -ldflags "-s -w"  -o URLFinder-windows32.exe main.go
+go build -ldflags "-s -w" -o URLFinder-windows32.exe
 
 linux
 #64位
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o URLFinder-linux64 main.go
+go build -ldflags "-s -w" -o URLFinder-linux64
 
 #32位
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=386
-go build -ldflags "-s -w" -o URLFinder-linux32 main.go
+go build -ldflags "-s -w" -o URLFinder-linux32
 
 macos
 #64位
 SET CGO_ENABLED=0
 SET GOOS=darwin
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o URLFinder-macos64 main.go
+go build -ldflags "-s -w" -o URLFinder-macos64
 
 #32位
 SET CGO_ENABLED=0
 SET GOOS=darwin
 SET GOARCH=386
-go build -ldflags "-s -w" -o URLFinder-macos32 main.go
+go build -ldflags "-s -w" -o URLFinder-macos32
 ```
 ## 更新说明  
+2022/10/6  
+新增 -x http代理设置  
+修改 多个相同域名导出时覆盖问题处理  
+
 2022/9/23  
 新增 对base标签的兼容  
 修复 正则bug  
