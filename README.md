@@ -7,10 +7,9 @@ URLFinder是一款快速提取检测页面中JS与URL的工具
 
 URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善且可查看状态码、内容大小、标题等  
 
-基于golang的多线程特性，几千个链接也能几秒内出状态检测结果
+基于golang的多线程特性，几千个链接也能几秒内出状态检测结果  
 
 有什么需求或bug欢迎各位师傅提交lssues  
-
 
 ## 功能说明
 1.提取页面与JS中的JS及URL链接（页面URL最多深入一层，防止抓偏）  
@@ -21,6 +20,7 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 6.支持指定抓取域名  
 7.记录抓取来源，便于手动分析   
 8.支持设置http代理  
+9.支持对404链接Fuzz（测试版，有问题提issue）
 
 结果会优先显示输入的url顶级域名，其他域名不做区分显示在 other  
 结果会优先显示200，按从小到大排序（输入的域名最优先，就算是404也会排序在其他子域名的200前面）
@@ -45,65 +45,71 @@ URLFinder.exe -s all -m 2 -f url.txt -o d:/
 ```
 参数：  
 ```
--h  帮助信息 （可以看到当前版本更新日期）
--u  目标URL  
--d  指定获取的域名
 -a  自定义user-agent请求头  
--s  显示指定状态码，all为显示全部  
+-c  请求添加cookie  
+-d  指定获取的域名  
+-f  批量url抓取，需指定url文本路径  
+-h  帮助信息 （可以看到当前版本更新日期） 
+-i  加载yaml配置文件（不存在时，会在当前目录创建一个默认yaml配置文件）  
 -m  抓取模式：
         1  正常抓取（默认）
         2  深入抓取 （url只深入一层，防止抓偏）
-        3  安全深入抓取（过滤delete，remove等敏感路由）
--c  添加cookie  
--i  加载yaml配置文件（不存在时，会在当前目录创建一个默认yaml配置文件）  
--x  设置http代理,格式: http://127.0.0.1:8877|username:password （无需身份验证就不写后半部分）
--f  批量url抓取，需指定url文本路径  
+        3  安全深入抓取（过滤delete，remove等敏感路由） 
 -o  结果导出到csv文件，需指定导出文件目录（.代表当前目录）
+-s  显示指定状态码，all为显示全部  
+-t  设置线程数（默认50）
+-u  目标URL  
+-x  设置http代理,格式: http://127.0.0.1:8877|username:password （无需身份验证就不写后半部分）
+-z  提取所有目录对404链接进行fuzz(只对主域名下的链接生效,需要与-s一起使用）  
+        1  目录递减fuzz  
+        2  2级目录组合fuzz
+        3  3级目录组合fuzz（适合少量链接使用）
 ```
 ##  编译  
 以下是在windows环境下，编译出各平台可执行文件的命令  
 
 ```
-windows
-#64位
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o URLFinder-windows64.exe
+go build -ldflags "-s -w" -o ../URLFinder-windows-amd64.exe
 
-#32位
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=386
-go build -ldflags "-s -w" -o URLFinder-windows32.exe
+go build -ldflags "-s -w"  -o ../URLFinder-windows-386.exe
 
-linux
-#64位
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o URLFinder-linux64
+go build -ldflags "-s -w" -o ../URLFinder-linux-amd64
 
-#32位
+SET CGO_ENABLED=0
+SET GOOS=linux
+SET GOARCH=arm64
+go build -ldflags "-s -w" -o ../URLFinder-linux-arm64
+
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=386
-go build -ldflags "-s -w" -o URLFinder-linux32
+go build -ldflags "-s -w" -o ../URLFinder-linux-386
 
-macos
-#64位
 SET CGO_ENABLED=0
 SET GOOS=darwin
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o URLFinder-macos64
+go build -ldflags "-s -w" -o ../URLFinder-macos-amd64
 
-#32位
 SET CGO_ENABLED=0
 SET GOOS=darwin
-SET GOARCH=386
-go build -ldflags "-s -w" -o URLFinder-macos32
+SET GOARCH=arm64
+go build -ldflags "-s -w" -o ../URLFinder-macos-arm64
 ```
 ## 更新说明  
+2022/10/25  
+新增 -t 设置线程数(默认50)  
+新增 -z 对主域名的404链接fuzz测试  
+优化 部分细节  
+
 2022/10/6  
 新增 -x http代理设置  
 修改 多个相同域名导出时覆盖问题处理  

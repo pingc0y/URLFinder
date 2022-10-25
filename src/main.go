@@ -13,9 +13,12 @@ import (
 )
 
 var (
-	lock sync.Mutex
-	wg   sync.WaitGroup
-	mux  sync.Mutex
+	lock  sync.Mutex
+	wg    sync.WaitGroup
+	mux   sync.Mutex
+	ch    = make(chan int, t)
+	jsch  = make(chan int, t/2)
+	urlch = make(chan int, t/2)
 )
 
 var progress int = 1
@@ -46,27 +49,31 @@ var (
 	f string
 	o string
 	x string
+	t int = 50
+	z int
 )
 
 func init() {
-	flag.BoolVar(&h, "h", false, "this help")
-	flag.BoolVar(&I, "i", false, "set configFile")
-	flag.StringVar(&u, "u", "", "set url")
-	flag.StringVar(&d, "d", "", "set domainName")
-	flag.StringVar(&c, "c", "", "set cookie")
-	flag.StringVar(&f, "f", "", "set urlFile")
-	flag.StringVar(&o, "o", "", "set outFile")
-	flag.StringVar(&a, "a", "", "set user-agent")
-	flag.StringVar(&s, "s", "", "set status")
-	flag.StringVar(&x, "x", "", "set httpProxy")
-	flag.IntVar(&m, "m", 1, "set mode \n   1  normal \n   2  thorough \n   3  security \n")
+	flag.StringVar(&a, "a", "", "set user-agent\n设置user-agent请求头")
+	flag.StringVar(&c, "c", "", "set cookie\n设置cookie")
+	flag.StringVar(&d, "d", "", "set domainName\n指定获取的域名")
+	flag.StringVar(&f, "f", "", "set urlFile\n批量抓取url,指定文件路径")
+	flag.BoolVar(&h, "h", false, "this help\n帮助信息（可以看到当前版本更新日期）")
+	flag.BoolVar(&I, "i", false, "set configFile\n加载yaml配置文件（不存在时，会在当前目录创建一个默认yaml配置文件）")
+	flag.IntVar(&m, "m", 1, "set mode\n抓取模式 \n   1 normal\n     正常抓取（默认） \n   2 thorough\n     深入抓取 （url只深入一层，防止抓偏） \n   3 security\n     安全深入抓取（过滤delete，remove等敏感路由） \n   ")
+	flag.StringVar(&o, "o", "", "set outFile\n结果导出到csv文件，需指定导出文件目录（.代表当前目录）")
+	flag.StringVar(&s, "s", "", "set status\n显示指定状态码，all为显示全部（多个状态码用,隔开）")
+	flag.IntVar(&t, "t", 50, "set thread\n设置线程数（默认50）\n")
+	flag.StringVar(&u, "u", "", "set url\n目标URL")
+	flag.StringVar(&x, "x", "", "set httpProxy\n设置http代理,格式: http://127.0.0.1:8877|username:password （无需身份验证就不写后半部分）")
+	flag.IntVar(&z, "z", 0, "set Fuzz\n对404链接进行fuzz(只对主域名下的链接生效,需要与-s一起使用） \n   1 decreasing\n     目录递减fuzz \n   2 2combination\n     2级目录组合fuzz \n   3 3combination\n     3级目录组合fuzz（适合少量链接使用） \n")
 
 	// 改变默认的 Usage
 	flag.Usage = usage
 }
 func usage() {
-	fmt.Fprintf(os.Stderr, `URLFinder 2022/10/6  by pingc
-Usage: URLFinder [-h help] [-u url] [-d domainName] [-c cookie]  [-a user-agent]  [-m mode]  [-f urlFile]  [-o outFile] [-s status] [-i configFile] [-x httpProxy]
+	fmt.Fprintf(os.Stderr, `URLFinder 2022/10/25  by pingc
+Usage: URLFinder [-a user-agent] [-c cookie] [-d domainName] [-f urlFile]  [-h help]  [-i configFile]  [-m mode] [-o outFile]  [-s status] [-t thread] [-u url] [-x httpProxy] [-z fuzz]
 
 Options:
 `)
@@ -94,6 +101,11 @@ func main() {
 	}
 	if I {
 		GetConfig("config.yaml")
+	}
+	if t != 50 {
+		ch = make(chan int, t+1)
+		jsch = make(chan int, t/2+1)
+		urlch = make(chan int, t/2+1)
 	}
 	if f != "" {
 		// 创建句柄
@@ -125,35 +137,43 @@ func main() {
 }
 
 func start(u string) {
-	wg.Add(1)
+
 	jsinurl = make(map[string]string)
 	jstourl = make(map[string]string)
 	urltourl = make(map[string]string)
 	fmt.Println("Start Spider URL: " + color.LightBlue.Sprintf(u))
-
+	wg.Add(1)
+	ch <- 1
 	go spider(u, true)
 	wg.Wait()
 	progress = 1
-	fmt.Println("\rSpider OK      ")
+	fmt.Printf("\rSpider OK      \n")
 
 	resultUrl = RemoveRepeatElement(resultUrl)
 	resultJs = RemoveRepeatElement(resultJs)
-
 	if s != "" {
-		fmt.Println("Start Validate...")
+		fmt.Printf("Start %d Validate...\n", len(resultUrl)+len(resultJs))
+		fmt.Printf("\r                                           ")
+		//验证JS状态
+		for i, s := range resultJs {
+			wg.Add(1)
+			jsch <- 1
+			go jsState(s[0], i)
+		}
+		//验证URL状态
+		for i, s := range resultUrl {
+			wg.Add(1)
+			urlch <- 1
+			go urlState(s[0], i)
+		}
+		wg.Wait()
+		fmt.Printf("\r                                           ")
+		fmt.Printf("\rValidate OK  \n")
+
+		if z != 0 {
+			fuzz()
+		}
 	}
-	//验证JS状态
-	for i, s := range resultJs {
-		wg.Add(1)
-		go jsState(s[0], i)
-	}
-	//验证URL状态
-	for i, s := range resultUrl {
-		wg.Add(1)
-		go urlState(s[0], i)
-	}
-	wg.Wait()
-	fmt.Println("\rValidate OK     ")
 
 	//打印还是输出
 	if len(o) > 0 {
@@ -166,6 +186,7 @@ func start(u string) {
 func appendJs(url string, urltjs string) {
 	lock.Lock()
 	defer lock.Unlock()
+	url = strings.Replace(url, "/./", "/", -1)
 	for _, eachItem := range resultJs {
 		if eachItem[0] == url {
 			return
@@ -188,6 +209,7 @@ func appendJs(url string, urltjs string) {
 func appendUrl(url string, urlturl string) {
 	lock.Lock()
 	defer lock.Unlock()
+	url = strings.Replace(url, "/./", "/", -1)
 	for _, eachItem := range resultUrl {
 		if eachItem[0] == url {
 			return
@@ -197,6 +219,7 @@ func appendUrl(url string, urlturl string) {
 	if o != "" {
 		urltourl[url] = urlturl
 	}
+
 }
 
 func appendEndUrl(url string) {

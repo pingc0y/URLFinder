@@ -80,7 +80,7 @@ func outFile() {
 		writer.WriteString(str + "\n")
 	}
 	if d == "" {
-		writer.WriteString("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other\n")
+		writer.WriteString("\n" + strconv.Itoa(len(resultJsOther)) + " JS to Other\n")
 	}
 	for _, j := range resultJsOther {
 		var str = ""
@@ -133,7 +133,7 @@ func outFile() {
 		writer.WriteString(str + "\n")
 	}
 	if d == "" {
-		writer.WriteString("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other\n")
+		writer.WriteString("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to Other\n")
 	}
 	for _, u := range resultUrlOther {
 		var str = ""
@@ -159,6 +159,35 @@ func outFile() {
 			str = fmt.Sprintf("\"%s\",\"%s\"", u[0], urltourl[u[0]])
 		}
 		writer.WriteString(str + "\n")
+	}
+	if s != "" && z != 0 {
+		writer.WriteString("\n" + strconv.Itoa(len(fuzzs)) + " URL to Fuzz\n")
+		fuzzs = SelectSort(fuzzs)
+		for _, u := range fuzzs {
+			var str = ""
+			if len(u) == 4 {
+				if strings.HasPrefix(u[1], "2") {
+					str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
+				} else if strings.HasPrefix(u[1], "3") {
+					str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
+				} else {
+					str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", u[0], u[1], u[2], u[3], urltourl[u[0]])
+				}
+			} else if len(u) == 3 {
+				if strings.HasPrefix(u[1], "2") {
+					str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
+				} else if strings.HasPrefix(u[1], "3") {
+					str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
+				} else {
+					str = fmt.Sprintf("\"%s\",\"%s\",\"%s\",,\"%s\"", u[0], u[1], u[2], urltourl[u[0]])
+				}
+			} else if len(u) == 2 {
+				str = fmt.Sprintf("\"%s\",\"%s\",\"0\",,\"%s\"", u[0], u[1], urltourl[u[0]])
+			} else if s == "" {
+				str = fmt.Sprintf("\"%s\",\"%s\"", u[0], urltourl[u[0]])
+			}
+			writer.WriteString(str + "\n")
+		}
 
 	}
 
@@ -186,7 +215,6 @@ func print() {
 		resultJs = SelectSort(resultJs)
 	}
 	//抓取的域名优先排序
-
 	resultJsHost, resultJsOther := urlDispose(resultJs, host, getHost(u))
 
 	ulen := ""
@@ -226,7 +254,7 @@ func print() {
 		}
 	}
 	if d == "" {
-		fmt.Println("\n" + strconv.Itoa(len(resultJsOther)) + " JS to other")
+		fmt.Println("\n" + strconv.Itoa(len(resultJsOther)) + " JS to Other")
 	}
 	for _, j := range resultJsOther {
 		if len(j) == 3 {
@@ -284,7 +312,7 @@ func print() {
 		}
 	}
 	if d == "" {
-		fmt.Println("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to other")
+		fmt.Println("\n" + strconv.Itoa(len(resultUrlOther)) + " URL to Other")
 	}
 	for _, u := range resultUrlOther {
 		if len(u) == 4 {
@@ -309,6 +337,36 @@ func print() {
 			fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: 0 ]\n", u[1]))
 		} else if s == "" {
 			fmt.Printf(color.LightBlue.Sprintf(u[0]) + "\n")
+		}
+	}
+
+	if s != "" && z != 0 {
+		fmt.Println("\n" + strconv.Itoa(len(fuzzs)) + " URL to Fuzz")
+		fuzzs = SelectSort(fuzzs)
+		for _, u := range fuzzs {
+			if len(u) == 4 {
+				if strings.HasPrefix(u[1], "0") {
+					fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ %s ]\n", u[3]))
+				} else if strings.HasPrefix(u[1], "2") {
+					fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
+				} else if strings.HasPrefix(u[1], "3") {
+					fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightYellow.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
+				} else {
+					fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: %s, title: %s ]\n", u[1], u[2], u[3]))
+				}
+			} else if len(u) == 3 {
+				if strings.HasPrefix(u[1], "2") {
+					fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightGreen.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
+				} else if strings.HasPrefix(u[1], "3") {
+					fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightYellow.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
+				} else {
+					fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: %s ]\n", u[1], u[2]))
+				}
+			} else if len(u) == 2 {
+				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u[0]) + color.LightRed.Sprintf(" [ status: %s, size: 0 ]\n", u[1]))
+			} else if s == "" {
+				fmt.Printf(color.LightBlue.Sprintf(u[0]) + "\n")
+			}
 		}
 	}
 }

@@ -62,7 +62,7 @@ func urlDispose(arr [][]string, url, host string) ([][]string, [][]string) {
 		if strings.Contains(v[0], url) {
 			urls = append(urls, v)
 		} else {
-			if strings.Contains(v[0], host) {
+			if host != "" && strings.Contains(v[0], host) {
 				urlts = append(urlts, v)
 			} else {
 				other = append(other, v)
@@ -133,6 +133,7 @@ func RemoveRepeatElement(list [][]string) [][]string {
 				// 遍历数组元素，判断此元素是否已经存在map中
 				_, ok := temp[v[0]]
 				if !ok {
+					v[0] = strings.Replace(v[0], "/./", "/", -1)
 					list2 = append(list2, v)
 					temp[v[0]] = true
 				}
@@ -197,10 +198,18 @@ func SetProxyConfig(tr *http.Transport) *http.Transport {
 	return tr
 }
 
-// 打印进度
+// 打印Validate进度
 func printProgress() {
 	num := len(resultJs) + len(resultUrl)
 	fmt.Printf("\rValidate %.0f%%", float64(progress+1)/float64(num+1)*100)
+	mux.Lock()
+	progress++
+	mux.Unlock()
+}
+
+// 打印Fuzz进度
+func printFuzz() {
+	fmt.Printf("\rFuzz %.0f%%", float64(progress+1)/float64(fuzzNum+1)*100)
 	mux.Lock()
 	progress++
 	mux.Unlock()
@@ -228,4 +237,107 @@ func exists(path string) bool {
 		return false
 	}
 	return true
+}
+
+// 数组去重
+func uniqueArr(arr []string) []string {
+	newArr := make([]string, 0)
+	tempArr := make(map[string]bool, len(newArr))
+	for _, v := range arr {
+		if tempArr[v] == false {
+			tempArr[v] = true
+			newArr = append(newArr, v)
+		}
+	}
+	return newArr
+}
+
+// 提取fuzz的目录结构
+func pathExtract(urls []string) ([]string, []string) {
+	var catalogues []string
+	var targets []string
+	if len(urls) == 0 {
+		return nil, nil
+	}
+	par, _ := url.Parse(urls[0])
+	host := par.Scheme + "://" + par.Host
+	for _, v := range urls {
+		parse, _ := url.Parse(v)
+		catalogue := regexp.MustCompile("([^/]+?)/").FindAllStringSubmatch(parse.Path, -1)
+		target := regexp.MustCompile(".*/([^/]+)").FindAllStringSubmatch(parse.Path, -1)
+		for _, v := range catalogue {
+			catalogues = append(catalogues, v[1])
+		}
+		if len(target) > 0 {
+			targets = append(targets, target[0][1])
+		}
+	}
+	catalogues = uniqueArr(catalogues)
+	targets = uniqueArr(targets)
+	url1 := catalogues
+	url2 := []string{}
+	url3 := []string{}
+	var path []string
+	for _, v1 := range url1 {
+		for _, v2 := range url1 {
+			if !strings.Contains(v2, v1) {
+				url2 = append(url2, "/"+v2+"/"+v1)
+			}
+		}
+	}
+	if z == 3 {
+		for _, v1 := range url1 {
+			for _, v3 := range url2 {
+				if !strings.Contains(v3, v1) {
+					url3 = append(url3, v3+"/"+v1)
+				}
+			}
+		}
+	}
+	for i := range url1 {
+		url1[i] = "/" + url1[i]
+	}
+	if z == 3 {
+		path = make([]string, len(url1)+len(url2)+len(url3))
+	} else {
+		path = make([]string, len(url1)+len(url2))
+	}
+	copy(path, url1)
+	copy(path[len(url1):], url2)
+	if z == 3 {
+		copy(path[len(url1)+len(url2):], url3)
+	}
+	for i := range path {
+		path[i] = host + path[i] + "/"
+	}
+	path = append(path, host+"/")
+	return path, targets
+}
+
+// 去除状态码非404的404链接
+func del404(urls [][]string) [][]string {
+	is := make(map[string]int)
+	//根据长度分别存放
+	for _, v := range urls {
+		arr, ok := is[v[2]]
+		if ok {
+			is[v[2]] = arr + 1
+		} else {
+			is[v[2]] = 1
+		}
+
+	}
+	res := [][]string{}
+	//如果某个长度的数量大于全部的3分之2，那么就判定它是404页面
+	for i, v := range is {
+		if v > len(urls)/2 {
+			for _, vv := range urls {
+				if vv[2] != i {
+					res = append(res, vv)
+				}
+			}
+		}
+	}
+	return res
+
 }
