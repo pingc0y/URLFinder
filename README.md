@@ -1,36 +1,49 @@
 # URLFinder
+致敬JSFinder，开发由来就是使用JSFinder经常返回空或链接不全，作者也很久没更新修bug，就萌生了自己开发的想法
+
 URLFinder是一款快速提取检测页面中JS与URL的工具  
 
 通常用于查找隐藏在页面或js中的敏感或未授权api接口  
 
-功能类似于JSFinder，开发由来就是使用它的时候经常返回空或链接不全，作者还不更新修bug，那就自己来咯  
+URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善且可查看状态码、内容大小、标题等（后续加了一些功能，但主要还是抓链接）  
 
-URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善且可查看状态码、内容大小、标题等  
+基于golang的多线程特性，几千个链接也能几秒内出结果  
 
-基于golang的多线程特性，几千个链接也能几秒内出状态检测结果  
+有什么需求或bug欢迎各位师傅提交lssues
 
-有什么需求或bug欢迎各位师傅提交lssues  
+
+#### 注意:  
+
+内置的fuzz功能不是常规的目录爆破，是基于抓到的404目录和路径当作字典去随机组合然后碰撞出有效路径，是解决路径拼接错误的一种处理方式
+
+为了更好的兼容和防止漏抓链接，后续更新放弃了低误报率，错误的链接会变多但漏抓概率变低，可通过 ‘-s 200’ 筛选状态码过滤无效的链接
+
 
 ## 功能说明
-1.提取页面与JS中的JS及URL链接（页面URL最多深入一层，防止抓偏）  
+1.提取页面与JS中的JS及URL链接（URL深入一层，JS深入三层 防止抓偏），以及部分敏感信息  
 2.提取到的链接会显示状态码、响应大小、标题等（带cookie操作时请使用-m 3 安全模式，防止误操作）  
-3.支持yml配置Headers请求头、代理  
-4.支持提取批量URL  
-5.支持结果导出到csv文件  
-6.支持指定抓取域名  
-7.记录抓取来源，便于手动分析   
-8.支持设置http代理  
-9.支持对404链接Fuzz（测试版，有问题提issue）
+3.提取批量URL  
+4.yml配置Headers请求头、代理  
+5.结果导出到csv、json、html  
+6.记录抓取来源，便于手动分析（-o 导出才有）
+7.指定抓取域名  
+8.指定baseurl路径(指定目录拼接)
+9.设置代理    
+10.对404链接Fuzz（测试版，有问题提issue）
 
 结果会优先显示输入的url顶级域名，其他域名不做区分显示在 other  
 结果会优先显示200，按从小到大排序（输入的域名最优先，就算是404也会排序在其他子域名的200前面）
 
 ## 使用截图
-单url截图（旧版截图）  
-[![jagnp9.png](https://s1.ax1x.com/2022/08/19/vr0G1P.png)](https://s1.ax1x.com/2022/08/19/vr0G1P.png)  
-批量url截图  （旧版截图）
-[![vRqHrd.png](https://s1.ax1x.com/2022/08/27/vRqHrd.png)](https://s1.ax1x.com/2022/08/27/vRqHrd.png)  
-[![vRqbqA.png](https://s1.ax1x.com/2022/08/27/vRqbqA.png)](https://s1.ax1x.com/2022/08/27/vRqbqA.png)  
+
+[![0.jpg](https://github.com/pingc0y/URLFinder/img/0.jpg)](https://github.com/pingc0y/URLFinder/img/1.jpg)   
+[![1.jpg](https://github.com/pingc0y/URLFinder/img/1.jpg)](https://github.com/pingc0y/URLFinder/img/2.jpg)  
+[![2.jpg](https://github.com/pingc0y/URLFinder/img/2.jpg)](https://github.com/pingc0y/URLFinder/img/3.jpg)  
+[![3.jpg](https://github.com/pingc0y/URLFinder/img/3.jpg)](https://github.com/pingc0y/URLFinder/img/4.jpg)  
+[![4.jpg](https://github.com/pingc0y/URLFinder/img/4.jpg)](https://github.com/pingc0y/URLFinder/img/5.jpg)  
+[![5.jpg](https://github.com/pingc0y/URLFinder/img/5.jpg)](https://github.com/pingc0y/URLFinder/img/6.jpg)  
+
+
 
 ## 使用教程
 单url时使用  
@@ -46,6 +59,7 @@ URLFinder.exe -s all -m 2 -f url.txt -o d:/
 参数：  
 ```
 -a  自定义user-agent请求头  
+-b  自定义baseurl路径  
 -c  请求添加cookie  
 -d  指定获取的域名  
 -f  批量url抓取，需指定url文本路径  
@@ -59,7 +73,7 @@ URLFinder.exe -s all -m 2 -f url.txt -o d:/
 -s  显示指定状态码，all为显示全部  
 -t  设置线程数（默认50）
 -u  目标URL  
--x  设置http代理,格式: http://127.0.0.1:8877|username:password （无需身份验证就不写后半部分）
+-x  设置代理,格式: http://username:password@127.0.0.1:8877
 -z  提取所有目录对404链接进行fuzz(只对主域名下的链接生效,需要与-s一起使用）  
         1  目录递减fuzz  
         2  2级目录组合fuzz
@@ -72,12 +86,12 @@ URLFinder.exe -s all -m 2 -f url.txt -o d:/
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o ../URLFinder-windows-amd64.exe
+go build -ldflags "-s -w" -o ./URLFinder-windows-amd64.exe
 
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=386
-go build -ldflags "-s -w"  -o ../URLFinder-windows-386.exe
+go build -ldflags "-s -w" -o ../URLFinder-windows-386.exe
 
 SET CGO_ENABLED=0
 SET GOOS=linux
@@ -105,6 +119,14 @@ SET GOARCH=arm64
 go build -ldflags "-s -w" -o ../URLFinder-macos-arm64
 ```
 ## 更新说明  
+2023/1/29  
+新增 -b 设置baseurl路径  
+新增 -o json、html格式导出  
+新增 部分敏感信息获取  
+新增 默认会进行简单的js爆破  
+变化 能抓到更多链接，但垃圾数据变多  
+变化 代理设置方式变更
+
 2022/10/25  
 新增 -t 设置线程数(默认50)  
 新增 -z 对主域名的404链接fuzz测试  
@@ -136,7 +158,6 @@ go build -ldflags "-s -w" -o ../URLFinder-macos-arm64
 新增 -i 参数，加载yaml配置文件（目前只支持配置请求头headers）  
 修改 部分代码逻辑  
 修复 当ip存在端口时，导出会去除端口
- 
 
 2022/8/29  
 新增 抓取url数量显示  
@@ -147,7 +168,6 @@ go build -ldflags "-s -w" -o ../URLFinder-macos-arm64
 新增 -o 改为自定义文件目录  
 新增 导出文件改为csv后缀，表格查看更方便  
 修复 已知正则bug
-
 
 2022/8/19  
 优化 加长超时时间避免误判    

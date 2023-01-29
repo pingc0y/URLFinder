@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"net/http"
@@ -23,14 +22,14 @@ func IsDir(path string) bool {
 }
 
 // 对结果进行状态码排序
-func SelectSort(arr [][]string) [][]string {
+func SelectSort(arr []Link) []Link {
 	length := len(arr)
 	var sort []int
 	for _, v := range arr {
-		if v[0] == "" || len(v) == 1 || v[1] == "timeout" {
+		if v.Url == "" || len(v.Size) == 0 || v.Status == "timeout" {
 			sort = append(sort, 999)
 		} else {
-			in, _ := strconv.Atoi(v[1])
+			in, _ := strconv.Atoi(v.Status)
 			sort = append(sort, in)
 		}
 	}
@@ -54,15 +53,15 @@ func SelectSort(arr [][]string) [][]string {
 }
 
 // 对结果进行URL排序
-func urlDispose(arr [][]string, url, host string) ([][]string, [][]string) {
-	var urls [][]string
-	var urlts [][]string
-	var other [][]string
+func urlDispose(arr []Link, url, host string) ([]Link, []Link) {
+	var urls []Link
+	var urlts []Link
+	var other []Link
 	for _, v := range arr {
-		if strings.Contains(v[0], url) {
+		if strings.Contains(v.Url, url) {
 			urls = append(urls, v)
 		} else {
-			if host != "" && strings.Contains(v[0], host) {
+			if host != "" && strings.Contains(v.Url, host) {
 				urlts = append(urlts, v)
 			} else {
 				other = append(other, v)
@@ -114,28 +113,27 @@ func getHost(u string) string {
 }
 
 // 去重+去除错误url
-func RemoveRepeatElement(list [][]string) [][]string {
+func RemoveRepeatElement(list []Link) []Link {
 	// 创建一个临时map用来存储数组元素
 	temp := make(map[string]bool)
-	var list2 [][]string
+	var list2 []Link
 	index := 0
 	for _, v := range list {
 
 		//处理-d参数
 		if d != "" {
-			v[0] = domainNameFilter(v[0])
+			v.Url = domainNameFilter(v.Url)
 		}
-
-		if len(v[0]) > 10 {
+		if len(v.Url) > 10 {
 			re := regexp.MustCompile("://([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
-			hosts := re.FindAllString(v[0], 1)
+			hosts := re.FindAllString(v.Url, 1)
 			if len(hosts) != 0 {
 				// 遍历数组元素，判断此元素是否已经存在map中
-				_, ok := temp[v[0]]
+				_, ok := temp[v.Url]
 				if !ok {
-					v[0] = strings.Replace(v[0], "/./", "/", -1)
+					v.Url = strings.Replace(v.Url, "/./", "/", -1)
 					list2 = append(list2, v)
-					temp[v[0]] = true
+					temp[v.Url] = true
 				}
 			}
 		}
@@ -152,7 +150,7 @@ func GetConfig(path string) {
 		if strings.Contains(err.Error(), "The system cannot find the file specified") || strings.Contains(err.Error(), "no such file or directory") {
 
 			con.Headers = map[string]string{"Cookie": c, "User-Agent": ua, "Accept": "*/*"}
-			con.Proxy = map[string]string{"host": "", "username": "", "password": ""}
+			con.Proxy = ""
 			data, err2 := yaml.Marshal(con)
 			err2 = os.WriteFile(path, data, 0644)
 			if err2 != nil {
@@ -181,20 +179,14 @@ func SetHeadersConfig(header *http.Header) *http.Header {
 
 // proxy
 func SetProxyConfig(tr *http.Transport) *http.Transport {
-	if len(conf.Proxy["host"]) > 0 {
-		proxyUrl, parseErr := url.Parse(conf.Proxy["host"])
+	if len(conf.Proxy) > 0 {
+		proxyUrl, parseErr := url.Parse(conf.Proxy)
 		if parseErr != nil {
 			fmt.Println("代理地址错误: \n" + parseErr.Error())
 			os.Exit(1)
 		}
 		tr.Proxy = http.ProxyURL(proxyUrl)
-		if len(conf.Proxy["username"]) > 0 && len(conf.Proxy["password"]) > 0 {
-			basicAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte(conf.Proxy["username"]+":"+conf.Proxy["password"]))
-			tr.ProxyConnectHeader = http.Header{}
-			tr.ProxyConnectHeader.Add("Proxy-Authorization", basicAuth)
-		}
 	}
-
 	return tr
 }
 
@@ -264,14 +256,20 @@ func pathExtract(urls []string) ([]string, []string) {
 	for _, v := range urls {
 		parse, _ := url.Parse(v)
 		catalogue := regexp.MustCompile("([^/]+?)/").FindAllStringSubmatch(parse.Path, -1)
-		target := regexp.MustCompile(".*/([^/]+)").FindAllStringSubmatch(parse.Path, -1)
+		if !strings.HasSuffix(parse.Path, "/") {
+			target := regexp.MustCompile(".*/([^/]+)").FindAllStringSubmatch(parse.Path, -1)
+			if len(target) > 0 {
+				targets = append(targets, target[0][1])
+			}
+		}
 		for _, v := range catalogue {
-			catalogues = append(catalogues, v[1])
+			if !strings.Contains(v[1], "..") {
+				catalogues = append(catalogues, v[1])
+			}
 		}
-		if len(target) > 0 {
-			targets = append(targets, target[0][1])
-		}
+
 	}
+	targets = append(targets, "upload")
 	catalogues = uniqueArr(catalogues)
 	targets = uniqueArr(targets)
 	url1 := catalogues
@@ -315,29 +313,106 @@ func pathExtract(urls []string) ([]string, []string) {
 }
 
 // 去除状态码非404的404链接
-func del404(urls [][]string) [][]string {
-	is := make(map[string]int)
+func del404(urls []Link) []Link {
+	is := make(map[int]int)
 	//根据长度分别存放
 	for _, v := range urls {
-		arr, ok := is[v[2]]
+		arr, ok := is[len(v.Size)]
 		if ok {
-			is[v[2]] = arr + 1
+			is[len(v.Size)] = arr + 1
 		} else {
-			is[v[2]] = 1
+			is[len(v.Size)] = 1
 		}
-
 	}
-	res := [][]string{}
+	res := []Link{}
 	//如果某个长度的数量大于全部的3分之2，那么就判定它是404页面
 	for i, v := range is {
 		if v > len(urls)/2 {
 			for _, vv := range urls {
-				if vv[2] != i {
+				if len(vv.Size) != i {
 					res = append(res, vv)
 				}
 			}
 		}
 	}
 	return res
+
+}
+
+func appendJs(url string, urltjs string) {
+	lock.Lock()
+	defer lock.Unlock()
+	url = strings.Replace(url, "/./", "/", -1)
+	for _, eachItem := range resultJs {
+		if eachItem.Url == url {
+			return
+		}
+	}
+	resultJs = append(resultJs, Link{Url: url})
+	if strings.HasSuffix(urltjs, ".js") {
+		jsinurl[url] = jsinurl[urltjs]
+	} else {
+		re := regexp.MustCompile("[a-zA-z]+://[^\\s]*/|[a-zA-z]+://[^\\s]*")
+		u := re.FindAllStringSubmatch(urltjs, -1)
+		jsinurl[url] = u[0][0]
+	}
+	if o != "" {
+		jstourl[url] = urltjs
+	}
+
+}
+
+func appendUrl(url string, urlturl string) {
+	lock.Lock()
+	defer lock.Unlock()
+	url = strings.Replace(url, "/./", "/", -1)
+	for _, eachItem := range resultUrl {
+		if eachItem.Url == url {
+			return
+		}
+	}
+	resultUrl = append(resultUrl, Link{Url: url})
+	if o != "" {
+		urltourl[url] = urlturl
+	}
+}
+
+func appendInfo(info Info) {
+	lock.Lock()
+	defer lock.Unlock()
+	infos = append(infos, info)
+}
+
+func appendEndUrl(url string) {
+	lock.Lock()
+	defer lock.Unlock()
+	for _, eachItem := range endUrl {
+		if eachItem == url {
+			return
+		}
+	}
+	endUrl = append(endUrl, url)
+
+}
+
+func getEndUrl(url string) bool {
+	lock.Lock()
+	defer lock.Unlock()
+	for _, eachItem := range endUrl {
+		if eachItem == url {
+			return true
+		}
+	}
+	return false
+
+}
+
+func addSource() {
+	for i := range resultJs {
+		resultJs[i].Source = jstourl[resultJs[i].Url]
+	}
+	for i := range resultUrl {
+		resultUrl[i].Source = urltourl[resultUrl[i].Url]
+	}
 
 }
