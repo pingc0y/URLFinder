@@ -20,15 +20,15 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 
 
 ## 功能说明
-1.提取页面与JS中的JS及URL链接（URL深入一层，JS深入三层 防止抓偏），以及部分敏感信息  
+1.提取页面与JS中的JS及URL链接，以及部分敏感信息  
 2.提取到的链接会显示状态码、响应大小、标题等（带cookie操作时请使用-m 3 安全模式，防止误操作）  
 3.提取批量URL  
-4.yml配置Headers请求头、代理  
+4.yml配置Headers请求头、代理、抓取规则等    
 5.结果导出到csv、json、html  
-6.记录抓取来源，便于手动分析（-o 导出才有）
+6.记录抓取来源，便于手动分析（-o 导出才有）  
 7.指定抓取域名  
-8.指定baseurl路径(指定目录拼接)
-9.设置代理    
+8.指定baseurl路径(指定目录拼接)  
+9.使用代理ip    
 10.对404链接Fuzz（测试版，有问题提issue）
 
 结果会优先显示输入的url顶级域名，其他域名不做区分显示在 other  
@@ -36,14 +36,12 @@ URLFinder更专注于提取页面中的JS与URL链接，提取的数据更完善
 
 ## 使用截图
 
-[![0.jpg](https://github.com/pingc0y/URLFinder/img/0.jpg)](https://github.com/pingc0y/URLFinder/img/1.jpg)   
-[![1.jpg](https://github.com/pingc0y/URLFinder/img/1.jpg)](https://github.com/pingc0y/URLFinder/img/2.jpg)  
-[![2.jpg](https://github.com/pingc0y/URLFinder/img/2.jpg)](https://github.com/pingc0y/URLFinder/img/3.jpg)  
-[![3.jpg](https://github.com/pingc0y/URLFinder/img/3.jpg)](https://github.com/pingc0y/URLFinder/img/4.jpg)  
-[![4.jpg](https://github.com/pingc0y/URLFinder/img/4.jpg)](https://github.com/pingc0y/URLFinder/img/5.jpg)  
-[![5.jpg](https://github.com/pingc0y/URLFinder/img/5.jpg)](https://github.com/pingc0y/URLFinder/img/6.jpg)  
-
-
+[![0.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/0.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/0.jpg)   
+[![1.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/1.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/1.jpg)  
+[![2.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/2.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/2.jpg)  
+[![3.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/3.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/3.jpg)  
+[![4.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/4.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/4.jpg)  
+[![5.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/5.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/5.jpg)
 
 ## 使用教程
 单url时使用  
@@ -67,7 +65,7 @@ URLFinder.exe -s all -m 2 -f url.txt -o d:/
 -i  加载yaml配置文件（不存在时，会在当前目录创建一个默认yaml配置文件）  
 -m  抓取模式：
         1  正常抓取（默认）
-        2  深入抓取 （url只深入一层，防止抓偏）
+        2  深入抓取 （URL深入一层 JS深入三层 防止抓偏）
         3  安全深入抓取（过滤delete，remove等敏感路由） 
 -o  结果导出到csv文件，需指定导出文件目录（.代表当前目录）
 -s  显示指定状态码，all为显示全部  
@@ -91,34 +89,38 @@ go build -ldflags "-s -w" -o ./URLFinder-windows-amd64.exe
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=386
-go build -ldflags "-s -w" -o ../URLFinder-windows-386.exe
+go build -ldflags "-s -w" -o ./URLFinder-windows-386.exe
 
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o ../URLFinder-linux-amd64
+go build -ldflags "-s -w" -o ./URLFinder-linux-amd64
 
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=arm64
-go build -ldflags "-s -w" -o ../URLFinder-linux-arm64
+go build -ldflags "-s -w" -o ./URLFinder-linux-arm64
 
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=386
-go build -ldflags "-s -w" -o ../URLFinder-linux-386
+go build -ldflags "-s -w" -o ./URLFinder-linux-386
 
 SET CGO_ENABLED=0
 SET GOOS=darwin
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o ../URLFinder-macos-amd64
+go build -ldflags "-s -w" -o ./URLFinder-macos-amd64
 
 SET CGO_ENABLED=0
 SET GOOS=darwin
 SET GOARCH=arm64
-go build -ldflags "-s -w" -o ../URLFinder-macos-arm64
+go build -ldflags "-s -w" -o ./URLFinder-macos-arm64
 ```
 ## 更新说明  
+2023/2/3   
+新增 域名信息展示  
+变化 -i配置文件可配置抓取规则等   
+
 2023/1/29  
 新增 -b 设置baseurl路径  
 新增 -o json、html格式导出  

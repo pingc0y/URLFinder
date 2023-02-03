@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>URLFinder</title>
+    </script>
+    <style type="text/css">
+        body {
+            margin: 0;
+            color: rgba(0, 0, 0, .65);
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Helvetica Neue, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol;
+            font-variant: tabular-nums;
+            line-height: 1.5;
+            background-color: #fff;
+            -webkit-font-feature-settings: "tnum";
+            font-feature-settings: "tnum"
+        }
+
+        [tabindex="-1"]:focus {
+            outline: none !important
+        }
+
+        h1, h3 {
+            margin-top: 0;
+            margin-bottom: .5em;
+            color: rgba(0, 0, 0, .85);
+            font-weight: 500
+        }
+
+
+        a {
+            color: #1890ff;
+            text-decoration: none;
+            background-color: transparent;
+            outline: none;
+            cursor: pointer;
+            -webkit-transition: color .3s;
+            transition: color .3s;
+            -webkit-text-decoration-skip: objects
+        }
+
+        .ant-table-wrapper {
+            zoom: 1
+        }
+
+        .ant-table-wrapper:after, .ant-table-wrapper:before {
+            display: table;
+            content: ""
+        }
+
+        .ant-table-wrapper:after {
+            clear: both
+        }
+
+        .ant-table {
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            color: rgba(0, 0, 0, .65);
+            font-size: 14px;
+            font-variant: tabular-nums;
+            line-height: 1.5;
+            list-style: none;
+            -webkit-font-feature-settings: "tnum";
+            font-feature-settings: "tnum";
+            position: relative;
+            clear: both
+        }
+
+        .ant-table-body {
+            -webkit-transition: opacity .3s;
+            transition: opacity .3s
+        }
+
+        .ant-table table {
+            width: 100%;
+            text-align: left;
+            border-radius: 4px 4px 0 0;
+            border-collapse: separate;
+            border-spacing: 0
+        }
+
+        table {
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+
+        .ant-table-thead > tr > th {
+            color: rgba(0, 0, 0, .85);
+            font-weight: 500;
+            text-align: left;
+            background: #fafafa;
+            border-bottom: 1px solid #e8e8e8;
+            -webkit-transition: background .3s ease;
+            transition: background .3s ease
+        }
+
+        .ant-table-thead > tr > th .anticon-filter {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 28px;
+            height: 100%;
+            color: #bfbfbf;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+            -webkit-transition: all .3s;
+            transition: all .3s
+        }
+
+        .ant-table-thead > tr > th .anticon-filter > svg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -5px;
+            margin-left: -6px
+        }
+
+        .ant-table-thead > tr > th .ant-table-column-sorter {
+            display: table-cell;
+            vertical-align: middle
+        }
+
+        .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner {
+            height: 1em;
+            margin-top: .35em;
+            margin-left: .57142857em;
+            color: #bfbfbf;
+            line-height: 1em;
+            text-align: center;
+            -webkit-transition: all .3s;
+            transition: all .3s
+        }
+
+        .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner .ant-table-column-sorter-down, .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner .ant-table-column-sorter-up {
+            display: inline-bconfig . Lock;
+            font-size: 12px;
+            font-size: 11px \9;
+            -webkit-transform: scale(.91666667) rotate(0deg);
+            transform: scale(.91666667) rotate(0deg);
+            display: bconfig . Lock;
+            height: 1em;
+            line-height: 1em;
+            -webkit-transition: all .3s;
+            transition: all .3s
+        }
+
+        :root .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner .ant-table-column-sorter-down, :root .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner .ant-table-column-sorter-up {
+            font-size: 12px
+        }
+
+        .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner-full {
+            margin-top: -.15em
+        }
+
+        .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner-full .ant-table-column-sorter-down, .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner-full .ant-table-column-sorter-up {
+            height: .5em;
+            line-height: .5em
+        }
+
+        .ant-table-thead > tr > th .ant-table-column-sorter .ant-table-column-sorter-inner-full .ant-table-column-sorter-down {
+            margin-top: .125em
+        }
+
+        .ant-table-thead > tr > th.ant-table-column-has-actions {
+            position: relative;
+            background-clip: padding-box;
+            -webkit-background-clip: border-box
+        }
+
+        .ant-table-thead > tr > th.ant-table-column-has-actions.ant-table-column-has-filters {
+            padding-right: 30px !important
+        }
+
+        .ant-table-thead > tr > th.ant-table-column-has-actions.ant-table-column-has-filters:hover .anticon-filter:hover {
+            color: rgba(0, 0, 0, .45);
+            background: #e5e5e5
+        }
+
+        .ant-table-thead > tr > th.ant-table-column-has-actions.ant-table-column-has-filters:hover .anticon-filter:active {
+            color: rgba(0, 0, 0, .65)
+        }
+
+        .ant-table-thead > tr > th.ant-table-column-has-actions.ant-table-column-has-sorters {
+            cursor: pointer
+        }
+
+        .ant-table-thead > tr > th.ant-table-column-has-actions.ant-table-column-has-sorters:hover, .ant-table-thead > tr > th.ant-table-column-has-actions.ant-table-column-has-sorters:hover .anticon-filter {
+            background: #f2f2f2
+        }
+
+        .ant-table-thead > tr > th.ant-table-column-has-actions.ant-table-column-has-sorters:active .ant-table-column-sorter-down:not(.on), .ant-table-thead > tr > th.ant-table-column-has-actions.ant-table-column-has-sorters:active .ant-table-column-sorter-up:not(.on) {
+            color: rgba(0, 0, 0, .45)
+        }
+
+        .ant-table-thead > tr > th .ant-table-header-column {
+            display: inline-bconfig . Lock;
+            max-width: 100%;
+            vertical-align: top
+        }
+
+        .ant-table-thead > tr > th .ant-table-header-column .ant-table-column-sorters {
+            display: table
+        }
+
+        .ant-table-thead > tr > th .ant-table-header-column .ant-table-column-sorters > .ant-table-column-title {
+            display: table-cell;
+            vertical-align: middle
+        }
+
+        .ant-table-thead > tr > th .ant-table-header-column .ant-table-column-sorters > :not(.ant-table-column-sorter) {
+            position: relative
+        }
+
+        .ant-table-thead > tr > th .ant-table-header-column .ant-table-column-sorters:before {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: transparent;
+            -webkit-transition: all .3s;
+            transition: all .3s;
+            content: ""
+        }
+
+        .ant-table-thead > tr > th .ant-table-header-column .ant-table-column-sorters:hover:before {
+            background: rgba(0, 0, 0, .04)
+        }
+
+        .ant-table-thead > tr > th.ant-table-column-has-sorters {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none
+        }
+
+        .ant-table-thead > tr:first-child > th:first-child {
+            border-top-left-radius: 4px
+        }
+
+        .ant-table-thead > tr:first-child > th:last-child {
+            border-top-right-radius: 4px
+        }
+
+        .ant-table-tbody > tr > td {
+            border-bottom: 1px solid #e8e8e8;
+            -webkit-transition: background .3s;
+            transition: background .3s
+        }
+
+        .ant-table-tbody > tr:hover:not(.ant-table-expanded-row):not(.ant-table-row-selected) > td {
+            background: #e6f7ff
+        }
+
+        .ant-table-thead > tr:hover {
+            background: none
+        }
+
+        .ant-table-tbody > tr > td, .ant-table-thead > tr > th {
+            padding: 16px 16px;
+            overflow-wrap: break-word
+        }
+
+        .ant-table-expand-icon-th, .ant-table-row-expand-icon-cell {
+            width: 50px;
+            min-width: 50px;
+            text-align: center
+        }
+
+        .ant-card {
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            color: rgba(0, 0, 0, .65);
+            font-size: 14px;
+            font-variant: tabular-nums;
+            line-height: 1.5;
+            list-style: none;
+            -webkit-font-feature-settings: "tnum";
+            font-feature-settings: "tnum";
+            position: relative;
+            background: #fff;
+            border-radius: 2px;
+            -webkit-transition: all .3s;
+            transition: all .3s
+        }
+
+        .ant-card-bordered {
+            border: 1px solid #e8e8e8
+        }
+
+        .ant-card-head {
+            min-height: 48px;
+            margin-bottom: -1px;
+            padding: 0 24px;
+            color: rgba(0, 0, 0, .85);
+            font-weight: 500;
+            font-size: 16px;
+            background: transparent;
+            border-bottom: 1px solid #e8e8e8;
+            border-radius: 2px 2px 0 0;
+            zoom: 1
+        }
+
+        .ant-card-head:after, .ant-card-head:before {
+            display: table;
+            content: ""
+        }
+
+        .ant-card-head:after {
+            clear: both
+        }
+
+        .ant-card-head-wrapper {
+            display: -webkit-box;
+            display: -ms-flexbox;
+            display: flex;
+            -webkit-box-align: center;
+            -ms-flex-align: center;
+            align-items: center
+        }
+
+        .ant-card-head-title {
+            display: inline-bconfig . Lock;
+            -webkit-box-flex: 1;
+            -ms-flex: 1;
+            flex: 1;
+            padding: 16px 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis
+        }
+
+        .ant-card-body {
+            padding: 24px;
+            zoom: 1
+        }
+
+        .ant-card-body:after, .ant-card-body:before {
+            display: table;
+            content: ""
+        }
+
+        .ant-card-body:after {
+            clear: both
+        }
+
+        .ant-layout {
+            display: -webkit-box;
+            display: -ms-flexbox;
+            display: flex;
+            -webkit-box-flex: 1;
+            -ms-flex: auto;
+            flex: auto;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
+            -ms-flex-direction: column;
+            flex-direction: column;
+            min-height: 0;
+            background: #f0f2f5
+        }
+
+        .ant-layout, .ant-layout * {
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box
+        }
+
+        .ant-layout-footer, .ant-layout-header {
+            -webkit-box-flex: 0;
+            -ms-flex: 0 0 auto;
+            flex: 0 0 auto
+        }
+
+        .ant-layout-header {
+            height: 64px;
+            padding: 0 50px;
+            line-height: 64px;
+            background: #001529
+        }
+
+        .ant-layout-footer {
+            padding: 24px 50px;
+            color: rgba(0, 0, 0, .65);
+            font-size: 14px;
+            background: #f0f2f5
+        }
+
+        .ant-layout-content {
+            -webkit-box-flex: 1;
+            -ms-flex: auto;
+            flex: auto;
+            min-height: 0
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div>
+        <section class="ant-layout" id="components-layout-demo-fixed">
+            <header class="ant-layout-header"
+                    style="position:fixed;
+									z-index:10000;
+									width:100%;
+									background:rgb(8,103,193);
+									">
+                <h1 id="logo" viewBox="0 0 180 24" width="7.5em"
+                    height="1em" class="fs6b9dl">
+                    URLFinder Report
+
+                </h1>
+            </header>
+            <main class="ant-layout-content" style="padding:0px 50px;
+																margin-top:96px;
+																">
+                <div style="margin-bottom:48px;">
+
+                    <div class="ant-card ant-card-bordered" style="width:100%;">
+                        <div class="ant-card-head">
+                            <div class="ant-card-head-wrapper">
+                                <div class="ant-card-head-title">
+                                    <h3>JS to {urlHost}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ant-card-body" style="padding:0px;">
+                            <div class="ant-table-wrapper">
+                                <div class="ant-spin-nested-loading">
+                                    <div class="ant-spin-container">
+                                        <div class="ant-table ant-table-scroll-position-left ant-table-default">
+                                            <div class="ant-table-content">
+                                                <!---->
+                                                <div class="ant-table-body">
+                                                    <table class="">
+                                                        <thead class="ant-table-thead">
+                                                        <tr>
+                                                            <th key="url"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">URL</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="status"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Status</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="size"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Size</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="title"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:300px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Title</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="source"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Source</span>
+																				</div>
+																			</span>
+                                                            </th>
+
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody class="ant-table-tbody">
+                                                        {JS}
+                                                        </tbody>
+
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:48px;">
+
+                    <div class="ant-card ant-card-bordered" style="width:100%;">
+                        <div class="ant-card-head">
+                            <div class="ant-card-head-wrapper">
+                                <div class="ant-card-head-title">
+                                    <h3>JS to Other</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ant-card-body" style="padding:0px;">
+                            <div class="ant-table-wrapper">
+                                <div class="ant-spin-nested-loading">
+                                    <div class="ant-spin-container">
+                                        <div class="ant-table ant-table-scroll-position-left ant-table-default">
+                                            <div class="ant-table-content">
+                                                <!---->
+                                                <div class="ant-table-body">
+                                                    <table class="">
+                                                        <thead class="ant-table-thead">
+                                                        <tr>
+                                                            <th key="url"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">URL</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="status"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Status</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="size"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Size</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="title"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:300px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Title</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="source"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Source</span>
+																				</div>
+																			</span>
+                                                            </th>
+
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody class="ant-table-tbody">
+                                                        {JSOther}
+                                                        </tbody>
+
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:48px;">
+
+                    <div class="ant-card ant-card-bordered" style="width:100%;">
+                        <div class="ant-card-head">
+                            <div class="ant-card-head-wrapper">
+                                <div class="ant-card-head-title">
+                                    <h3>URL to {urlHost}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ant-card-body" style="padding:0px;">
+                            <div class="ant-table-wrapper">
+                                <div class="ant-spin-nested-loading">
+                                    <div class="ant-spin-container">
+                                        <div class="ant-table ant-table-scroll-position-left ant-table-default">
+                                            <div class="ant-table-content">
+                                                <!---->
+                                                <div class="ant-table-body">
+                                                    <table class="">
+                                                        <thead class="ant-table-thead">
+                                                        <tr>
+                                                            <th key="url"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">URL</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="status"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Status</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="size"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Size</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="title"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:300px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Title</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="source"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Source</span>
+																				</div>
+																			</span>
+                                                            </th>
+
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody class="ant-table-tbody">
+                                                        {URL}
+                                                        </tbody>
+
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:48px;">
+
+                    <div class="ant-card ant-card-bordered" style="width:100%;">
+                        <div class="ant-card-head">
+                            <div class="ant-card-head-wrapper">
+                                <div class="ant-card-head-title">
+                                    <h3>URL to Other</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ant-card-body" style="padding:0px;">
+                            <div class="ant-table-wrapper">
+                                <div class="ant-spin-nested-loading">
+                                    <div class="ant-spin-container">
+                                        <div class="ant-table ant-table-scroll-position-left ant-table-default">
+                                            <div class="ant-table-content">
+                                                <!---->
+                                                <div class="ant-table-body">
+                                                    <table class="">
+                                                        <thead class="ant-table-thead">
+                                                        <tr>
+                                                            <th key="url"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">URL</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="status"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Status</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="size"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Size</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="title"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:300px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Title</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="source"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Source</span>
+																				</div>
+																			</span>
+                                                            </th>
+
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody class="ant-table-tbody">
+                                                        {URLOther}
+                                                        </tbody>
+
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:48px;">
+
+                    <div class="ant-card ant-card-bordered" style="width:100%;">
+                        <div class="ant-card-head">
+                            <div class="ant-card-head-wrapper">
+                                <div class="ant-card-head-title">
+                                    <h3>Fuzz</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ant-card-body" style="padding:0px;">
+                            <div class="ant-table-wrapper">
+                                <div class="ant-spin-nested-loading">
+                                    <div class="ant-spin-container">
+                                        <div class="ant-table ant-table-scroll-position-left ant-table-default">
+                                            <div class="ant-table-content">
+                                                <!---->
+                                                <div class="ant-table-body">
+                                                    <table class="">
+                                                        <thead class="ant-table-thead">
+                                                        <tr>
+                                                            <th key="url"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">URL</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="status"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Status</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="size"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Size</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="title"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:300px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Title</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="source"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Source</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody class="ant-table-tbody">
+                                                        {Fuzz}
+                                                        </tbody>
+
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:48px;">
+
+                    <div class="ant-card ant-card-bordered" style="width:100%;">
+                        <div class="ant-card-head">
+                            <div class="ant-card-head-wrapper">
+                                <div class="ant-card-head-title">
+                                    <h3>Domains</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ant-card-body" style="padding:0px;">
+                            <div class="ant-table-wrapper">
+                                <div class="ant-spin-nested-loading">
+                                    <div class="ant-spin-container">
+                                        <div class="ant-table ant-table-scroll-position-left ant-table-default">
+                                            <div class="ant-table-content">
+                                                <!---->
+                                                <div class="ant-table-body">
+                                                    <table class="">
+                                                        <thead class="ant-table-thead">
+                                                        <tr>
+                                                            <th key="url"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Domain</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody class="ant-table-tbody">
+                                                        {Domains}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:48px;">
+
+                    <div class="ant-card ant-card-bordered" style="width:100%;">
+                        <div class="ant-card-head">
+                            <div class="ant-card-head-wrapper">
+                                <div class="ant-card-head-title">
+                                    <h3>Info</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ant-card-body" style="padding:0px;">
+                            <div class="ant-table-wrapper">
+                                <div class="ant-spin-nested-loading">
+                                    <div class="ant-spin-container">
+                                        <div class="ant-table ant-table-scroll-position-left ant-table-default">
+                                            <div class="ant-table-content">
+                                                <!---->
+                                                <div class="ant-table-body">
+                                                    <table class="">
+                                                        <thead class="ant-table-thead">
+                                                        <tr>
+                                                            <th key="url"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Type</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="status"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:150px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Value</span>
+																				</div>
+																			</span>
+                                                            </th>
+                                                            <th key="source"
+                                                                class="ant-table-column-has-actions ant-table-column-has-sorters"
+                                                                style="min-width:500px;">
+																			<span class="ant-table-header-column">
+																				<div class="ant-table-column-sorters">
+																					<span class="ant-table-column-title">Source</span>
+																				</div>
+																			</span>
+                                                            </th>
+
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody class="ant-table-tbody">
+                                                        {Info}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </main>
+
+        </section>
+
+    </div>
+</div>
+
+</body>
+
+</html>
