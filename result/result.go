@@ -10,6 +10,7 @@ import (
 	"github.com/pingc0y/URLFinder/mode"
 	"github.com/pingc0y/URLFinder/util"
 	"log"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -523,6 +524,7 @@ func Print() {
 	}
 
 	for _, u := range ResultUrlHost {
+		u.Url, _ = url.QueryUnescape(u.Url)
 		if cmd.S != "" && len(u.Title) != 0 {
 			if u.Status == "疑似危险路由" {
 				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u.Url) + color.LightGreen.Sprintf(" [ %s ]\n", u.Status))

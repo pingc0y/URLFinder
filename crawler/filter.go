@@ -29,6 +29,7 @@ func jsFilter(str [][]string) [][]string {
 			is := re.MatchString(str[i][0])
 			if is {
 				str[i][0] = ""
+				break
 			}
 		}
 
@@ -66,6 +67,7 @@ func urlFilter(str [][]string) [][]string {
 			is := re.MatchString(str[i][0])
 			if is {
 				str[i][0] = ""
+				break
 			}
 		}
 

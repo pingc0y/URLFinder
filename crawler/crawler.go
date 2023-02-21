@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"compress/gzip"
 	"crypto/tls"
 	"fmt"
 	"github.com/pingc0y/URLFinder/cmd"
@@ -50,18 +51,16 @@ func Spider(u string, num int) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-
 	//配置代理
 	if cmd.X != "" {
-		proxyUrl, parseErr := url.Parse(config.Conf.Proxy)
+		proxyUrl, parseErr := url.Parse(cmd.X)
 		if parseErr != nil {
 			fmt.Println("代理地址错误: \n" + parseErr.Error())
 			os.Exit(1)
 		}
 		tr.Proxy = http.ProxyURL(proxyUrl)
-	}
-	//加载yaml配置(proxy)
-	if cmd.I {
+	} else if cmd.I {
+		//加载yaml配置
 		util.SetProxyConfig(tr)
 	}
 	client := &http.Client{Timeout: 10 * time.Second, Transport: tr}
@@ -69,14 +68,19 @@ func Spider(u string, num int) {
 	if err != nil {
 		return
 	}
-	//增加header选项
-	request.Header.Add("Cookie", cmd.C)
+
+	request.Header.Add("Accept-Encoding", "gzip") //使用gzip压缩传输数据让访问更快
 	request.Header.Add("User-Agent", util.GetUserAgent())
 	request.Header.Add("Accept", "*/*")
-	//加载yaml配置（headers）
+	//增加header选项
+	if cmd.C != "" {
+		request.Header.Add("Cookie", cmd.C)
+	}
+	//加载yaml配置(headers)
 	if cmd.I {
 		util.SetHeadersConfig(&request.Header)
 	}
+
 	//处理返回结果
 	response, err := client.Do(request)
 	if err != nil {
@@ -85,19 +89,32 @@ func Spider(u string, num int) {
 		defer response.Body.Close()
 
 	}
-
-	//提取url用于拼接其他url或js
-	dataBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		return
+	result := ""
+	//解压
+	if response.Header.Get("Content-Encoding") == "gzip" {
+		reader, err := gzip.NewReader(response.Body) // gzip解压缩
+		if err != nil {
+			return
+		}
+		defer reader.Close()
+		con, err := io.ReadAll(reader)
+		if err != nil {
+			return
+		}
+		result = string(con)
+	} else {
+		//提取url用于拼接其他url或js
+		dataBytes, err := io.ReadAll(response.Body)
+		if err != nil {
+			return
+		}
+		//字节数组 转换成 字符串
+		result = string(dataBytes)
 	}
 	path := response.Request.URL.Path
 	host := response.Request.URL.Host
 	scheme := response.Request.URL.Scheme
 	source := scheme + "://" + host + path
-
-	//字节数组 转换成 字符串
-	result := string(dataBytes)
 	//处理base标签
 	re := regexp.MustCompile("base.{1,5}href.{1,5}(http.+?//[^\\s]+?)[\",',‘,“]")
 	base := re.FindAllStringSubmatch(result, -1)

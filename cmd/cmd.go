@@ -16,7 +16,7 @@ var (
 	D string
 	C string
 	A string
-	b string
+	B string
 	F string
 	O string
 	X string
@@ -26,7 +26,7 @@ var (
 
 func init() {
 	flag.StringVar(&A, "a", "", "set user-agent\n设置user-agent请求头")
-	flag.StringVar(&b, "b", "", "set baseurl\n设置baseurl路径")
+	flag.StringVar(&B, "b", "", "set baseurl\n设置baseurl路径")
 	flag.StringVar(&C, "c", "", "set cookie\n设置cookie")
 	flag.StringVar(&D, "d", "", "set domainName\n指定获取的域名")
 	flag.StringVar(&F, "f", "", "set urlFile\n批量抓取url,指定文件路径")
@@ -52,7 +52,7 @@ Options:
 }
 
 func Parse() {
-	color.LightCyan.Println("         __   __   ___ _           _           \n /\\ /\\  /__\\ / /  / __(_)_ __   __| | ___ _ __ \n/ / \\ \\/ \\/// /  / _\\ | | '_ \\ / _` |/ _ \\ '__|\n\\ \\_/ / _  \\ /___ /   | | | | | (_| |  __/ |   \n \\___/\\/ \\_\\____\\/    |_|_| |_|\\__,_|\\___|_|     \n\nBy: pingc0y\nUpdateTime: 2023/2/3\nGithub: https://github.com/pingc0y/URLFinder \n")
+	color.LightCyan.Println("         __   __   ___ _           _           \n /\\ /\\  /__\\ / /  / __(_)_ __   __| | ___ _ __ \n/ / \\ \\/ \\/// /  / _\\ | | '_ \\ / _` |/ _ \\ '__|\n\\ \\_/ / _  \\ /___ /   | | | | | (_| |  __/ |   \n \\___/\\/ \\_\\____\\/    |_|_| |_|\\__,_|\\___|_|     \n\nBy: pingc0y\nUpdateTime: 2023/2/21\nGithub: https://github.com/pingc0y/URLFinder \n")
 	flag.Parse()
 	if h || (U == "" && F == "") {
 		flag.Usage()

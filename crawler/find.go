@@ -115,8 +115,8 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 				}
 			} else if strings.HasPrefix(url[0], "/") {
 				urlz := ""
-				if cmd.D != "" {
-					urlz = cmd.D + url[0]
+				if cmd.B != "" {
+					urlz = cmd.B + url[0]
 				} else {
 					urlz = host + url[0]
 				}
@@ -128,11 +128,11 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 				}
 			} else if !strings.HasSuffix(source, ".js") {
 				urlz := ""
-				if cmd.D != "" {
-					if strings.HasSuffix(cmd.D, "/") {
-						urlz = cmd.D + url[0]
+				if cmd.B != "" {
+					if strings.HasSuffix(cmd.B, "/") {
+						urlz = cmd.B + url[0]
 					} else {
-						urlz = cmd.D + "/" + url[0]
+						urlz = cmd.B + "/" + url[0]
 					}
 				} else {
 					urlz = host + cata + url[0]

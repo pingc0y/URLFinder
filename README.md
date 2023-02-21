@@ -117,6 +117,10 @@ SET GOARCH=arm64
 go build -ldflags "-s -w" -o ./URLFinder-macos-arm64
 ```
 ## 更新说明  
+2023/2/21   
+修复 已知bug  
+
+
 2023/2/3   
 新增 域名信息展示  
 变化 -i配置文件可配置抓取规则等   
