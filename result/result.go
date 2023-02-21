@@ -524,7 +524,10 @@ func Print() {
 	}
 
 	for _, u := range ResultUrlHost {
-		u.Url, _ = url.QueryUnescape(u.Url)
+		urlx, err := url.QueryUnescape(u.Url)
+		if err == nil {
+			u.Url = urlx
+		}
 		if cmd.S != "" && len(u.Title) != 0 {
 			if u.Status == "疑似危险路由" {
 				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u.Url) + color.LightGreen.Sprintf(" [ %s ]\n", u.Status))
@@ -551,6 +554,10 @@ func Print() {
 		fmt.Println("\n" + strconv.Itoa(len(ResultUrlOther)) + " URL to Other")
 	}
 	for _, u := range ResultUrlOther {
+		urlx, err := url.QueryUnescape(u.Url)
+		if err == nil {
+			u.Url = urlx
+		}
 		if cmd.S != "" && len(u.Title) != 0 {
 			if u.Status == "疑似危险路由" {
 				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u.Url) + color.LightGreen.Sprintf(" [ %s ]\n", u.Status))
