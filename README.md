@@ -125,7 +125,6 @@ go build -ldflags "-s -w" -o ./URLFinder-macos-arm64
 新增 敏感信息增加Other  
 新增 -ff 全部抓取的数据,视为同一个url的结果来处理（只打印一份结果 | 只会输出一份结果） 
 
-
 2023/2/21   
 修复 已知bug
 
