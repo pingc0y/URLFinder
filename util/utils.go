@@ -29,7 +29,7 @@ func MergeArray(dest []mode.Link, src []mode.Link) (result []mode.Link) {
 	result = make([]mode.Link, len(dest)+len(src))
 	//将第一个数组传入result
 	copy(result, dest)
-	//将第二个数组接在尾部，也就是 len(dest):
+	//将第二个数组接在尾部,也就是 len(dest):
 	copy(result[len(dest):], src)
 	return
 }
@@ -74,7 +74,7 @@ func UrlDispose(arr []mode.Link, url, host string) ([]mode.Link, []mode.Link) {
 		if strings.Contains(v.Url, url) {
 			urls = append(urls, v)
 		} else {
-			if host != "" && strings.Contains(v.Url, host) {
+			if host != "" && regexp.MustCompile(host).MatchString(v.Url) {
 				urlts = append(urlts, v)
 			} else {
 				other = append(other, v)
@@ -162,7 +162,7 @@ func RemoveRepeatElement(list []mode.Link) []mode.Link {
 			re := regexp.MustCompile("://([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
 			hosts := re.FindAllString(v.Url, 1)
 			if len(hosts) != 0 {
-				// 遍历数组元素，判断此元素是否已经存在map中
+				// 遍历数组元素,判断此元素是否已经存在map中
 				_, ok := temp[v.Url]
 				if !ok {
 					v.Url = strings.Replace(v.Url, "/./", "/", -1)
@@ -190,7 +190,7 @@ func domainNameFilter(url string) string {
 	re := regexp.MustCompile("://([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
 	hosts := re.FindAllString(url, 1)
 	if len(hosts) != 0 {
-		if !strings.Contains(hosts[0], cmd.D) {
+		if !regexp.MustCompile(cmd.D).MatchString(hosts[0]) {
 			url = ""
 		}
 	}
@@ -315,7 +315,7 @@ func Del404(urls []mode.Link) []mode.Link {
 		}
 	}
 	res := []mode.Link{}
-	//如果某个长度的数量大于全部的3分之2，那么就判定它是404页面
+	//如果某个长度的数量大于全部的3分之2,那么就判定它是404页面
 	for i, v := range is {
 		if v > len(urls)/2 {
 			for _, vv := range urls {

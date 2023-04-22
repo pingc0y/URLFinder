@@ -18,17 +18,13 @@ import (
 )
 
 func start(u string) {
-	result.Jsinurl = make(map[string]string)
-	result.Jstourl = make(map[string]string)
-	result.Urltourl = make(map[string]string)
-	result.Infos = []mode.Info{}
-	fmt.Println("Start Spider URL: " + color.LightBlue.Sprintf(u))
+	fmt.Println("Target URL: " + color.LightBlue.Sprintf(u))
 	config.Wg.Add(1)
 	config.Ch <- 1
 	go Spider(u, 1)
 	config.Wg.Wait()
 	config.Progress = 1
-	fmt.Printf("\rSpider OK      \n")
+	fmt.Printf("\r\nSpider OK \n")
 	result.ResultUrl = util.RemoveRepeatElement(result.ResultUrl)
 	result.ResultJs = util.RemoveRepeatElement(result.ResultJs)
 	if cmd.S != "" {
@@ -51,7 +47,7 @@ func start(u string) {
 
 		time.Sleep(1 * time.Second)
 		fmt.Printf("\r                                           ")
-		fmt.Printf("\rValidate OK  \n")
+		fmt.Printf("\rValidate OK \n\n")
 
 		if cmd.Z != 0 {
 			fuzz.UrlFuzz()
@@ -60,6 +56,9 @@ func start(u string) {
 	}
 	AddSource()
 
+}
+
+func Res() {
 	//打印还是输出
 	if len(cmd.O) > 0 {
 		result.OutFileJson()
@@ -79,9 +78,16 @@ func Run() {
 	}
 	if cmd.I {
 		config.GetConfig("config.yaml")
-	} else {
-
 	}
+	if cmd.H || (cmd.U == "" && cmd.F == "" && cmd.FF == "") {
+		fmt.Println("请至少使用 -u 或 -f 指定一个url")
+		os.Exit(0)
+	}
+	if cmd.U != "" && !regexp.MustCompile("https{0,1}://").MatchString(cmd.U) {
+		fmt.Println("url格式错误,请填写正确url")
+		os.Exit(0)
+	}
+
 	if cmd.T != 50 {
 		config.Ch = make(chan int, cmd.T+1)
 		config.Jsch = make(chan int, cmd.T/2+1)
@@ -91,29 +97,58 @@ func Run() {
 		// 创建句柄
 		fi, err := os.Open(cmd.F)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			os.Exit(0)
 		}
 		r := bufio.NewReader(fi) // 创建 Reader
 		for {
-			result.ResultJs = nil
-			result.ResultUrl = nil
-			result.EndUrl = nil
-			result.Domains = nil
 
 			lineBytes, err := r.ReadBytes('\n')
-			//去掉字符串首尾空白字符，返回字符串
-			line := strings.TrimSpace(string(lineBytes))
-			cmd.U = line
-			start(cmd.U)
-
+			//去掉字符串首尾空白字符,返回字符串
+			if len(lineBytes) > 5 {
+				line := strings.TrimSpace(string(lineBytes))
+				cmd.U = line
+				Initialization()
+				start(cmd.U)
+				Res()
+				fmt.Println("----------------------------------------")
+			}
 			if err == io.EOF {
 				break
 			}
-			fmt.Println("----------------------------------------")
 
 		}
 		return
 	}
+	if cmd.FF != "" {
+		// 创建句柄
+		fi, err := os.Open(cmd.FF)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(0)
+		}
+		r := bufio.NewReader(fi) // 创建 Reader
+		Initialization()
+		for {
+			lineBytes, err := r.ReadBytes('\n')
+			//去掉字符串首尾空白字符,返回字符串
+			if len(lineBytes) > 5 {
+				line := strings.TrimSpace(string(lineBytes))
+				if cmd.U == "" {
+					cmd.U = line
+				}
+				start(line)
+				fmt.Println("----------------------------------------")
+			}
+
+			if err == io.EOF {
+				break
+			}
+		}
+		Res()
+		return
+	}
+	Initialization()
 	start(cmd.U)
 }
 
@@ -134,9 +169,7 @@ func AppendJs(url string, urltjs string) {
 		u := re.FindAllStringSubmatch(urltjs, -1)
 		result.Jsinurl[url] = u[0][0]
 	}
-	if cmd.O != "" {
-		result.Jstourl[url] = urltjs
-	}
+	result.Jstourl[url] = urltjs
 
 }
 
@@ -150,9 +183,7 @@ func AppendUrl(url string, urlturl string) {
 		}
 	}
 	result.ResultUrl = append(result.ResultUrl, mode.Link{Url: url})
-	if cmd.O != "" {
-		result.Urltourl[url] = urlturl
-	}
+	result.Urltourl[url] = urlturl
 }
 
 func AppendInfo(info mode.Info) {
@@ -193,4 +224,16 @@ func AddSource() {
 		result.ResultUrl[i].Source = result.Urltourl[result.ResultUrl[i].Url]
 	}
 
+}
+
+func Initialization() {
+	result.ResultJs = []mode.Link{}
+	result.ResultUrl = []mode.Link{}
+	result.Fuzzs = []mode.Link{}
+	result.Infos = []mode.Info{}
+	result.EndUrl = []string{}
+	result.Domains = []string{}
+	result.Jsinurl = make(map[string]string)
+	result.Jstourl = make(map[string]string)
+	result.Urltourl = make(map[string]string)
 }

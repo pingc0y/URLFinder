@@ -59,7 +59,7 @@ func fuzzGet(u string) {
 	}
 	//配置代理
 	if cmd.X != "" {
-		proxyUrl, parseErr := url.Parse(config.Conf.Proxy)
+		proxyUrl, parseErr := url.Parse(cmd.X)
 		if parseErr != nil {
 			fmt.Println("代理地址错误: \n" + parseErr.Error())
 			os.Exit(1)
@@ -75,8 +75,10 @@ func fuzzGet(u string) {
 	if err != nil {
 		return
 	}
+	if cmd.C != "" {
+		request.Header.Add("Cookie", cmd.C)
+	}
 	//增加header选项
-	request.Header.Add("Cookie", cmd.C)
 	request.Header.Add("User-Agent", util.GetUserAgent())
 	request.Header.Add("Accept", "*/*")
 	//加载yaml配置
@@ -103,12 +105,13 @@ func fuzzGet(u string) {
 		re := regexp.MustCompile("<Title>(.*?)</Title>")
 		title := re.FindAllStringSubmatch(body, -1)
 		config.Lock.Lock()
+		defer config.Lock.Unlock()
 		if len(title) != 0 {
 			result.Fuzzs = append(result.Fuzzs, mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Title: title[0][1], Source: "Fuzz"})
 		} else {
 			result.Fuzzs = append(result.Fuzzs, mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Title: "", Source: "Fuzz"})
 		}
-		config.Lock.Unlock()
+
 	}
 
 }

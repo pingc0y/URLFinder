@@ -186,9 +186,15 @@ func infoFind(cont, source string) {
 			info.JWT = append(info.JWT, Jwts[i][1])
 		}
 	}
+	for i := range config.Other {
+		Others := regexp.MustCompile(config.Other[i]).FindAllStringSubmatch(cont, -1)
+		for i := range Others {
+			info.Other = append(info.Other, Others[i][1])
+		}
+	}
 
 	info.Source = source
-	if len(info.Phone) != 0 || len(info.IDcard) != 0 || len(info.JWT) != 0 || len(info.Email) != 0 {
+	if len(info.Phone) != 0 || len(info.IDcard) != 0 || len(info.JWT) != 0 || len(info.Email) != 0 || len(info.Other) != 0 {
 		AppendInfo(info)
 	}
 

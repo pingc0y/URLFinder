@@ -43,7 +43,7 @@ func JsState(u string, i int, sou string) {
 	}
 	//配置代理
 	if cmd.X != "" {
-		proxyUrl, parseErr := url.Parse(config.Conf.Proxy)
+		proxyUrl, parseErr := url.Parse(cmd.X)
 		if parseErr != nil {
 			fmt.Println("代理地址错误: \n" + parseErr.Error())
 			os.Exit(1)
@@ -60,9 +60,10 @@ func JsState(u string, i int, sou string) {
 		result.ResultJs[i].Url = ""
 		return
 	}
-
+	if cmd.C != "" {
+		request.Header.Add("Cookie", cmd.C)
+	}
 	//增加header选项
-	request.Header.Add("Cookie", cmd.C)
 	request.Header.Add("User-Agent", util.GetUserAgent())
 	request.Header.Add("Accept", "*/*")
 	//加载yaml配置
@@ -114,7 +115,7 @@ func UrlState(u string, i int) {
 	if cmd.M == 3 {
 		for _, v := range config.Risks {
 			if strings.Contains(u, v) {
-				result.ResultUrl[i] = mode.Link{Url: u, Status: "0", Size: "0", Title: "疑似危险路由，已跳过验证"}
+				result.ResultUrl[i] = mode.Link{Url: u, Status: "0", Size: "0", Title: "疑似危险路由,已跳过验证"}
 				return
 			}
 		}
@@ -125,13 +126,14 @@ func UrlState(u string, i int) {
 	}
 	//配置代理
 	if cmd.X != "" {
-		proxyUrl, parseErr := url.Parse(config.Conf.Proxy)
+		proxyUrl, parseErr := url.Parse(cmd.X)
 		if parseErr != nil {
 			fmt.Println("代理地址错误: \n" + parseErr.Error())
 			os.Exit(1)
 		}
 		tr.Proxy = http.ProxyURL(proxyUrl)
 	}
+
 	//加载yaml配置(proxy)
 	if cmd.I {
 		util.SetProxyConfig(tr)
@@ -142,10 +144,14 @@ func UrlState(u string, i int) {
 		result.ResultUrl[i].Url = ""
 		return
 	}
+
+	if cmd.C != "" {
+		request.Header.Add("Cookie", cmd.C)
+	}
 	//增加header选项
-	request.Header.Add("Cookie", cmd.C)
 	request.Header.Add("User-Agent", util.GetUserAgent())
 	request.Header.Add("Accept", "*/*")
+
 	//加载yaml配置
 	if cmd.I {
 		util.SetHeadersConfig(&request.Header)

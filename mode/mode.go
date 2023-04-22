@@ -27,5 +27,6 @@ type Info struct {
 	Email  []string
 	IDcard []string
 	JWT    []string
+	Other  []string
 	Source string
 }

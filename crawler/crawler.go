@@ -20,7 +20,7 @@ import (
 // 蜘蛛抓取页面内容
 func Spider(u string, num int) {
 	var is bool
-	fmt.Printf("\rSpider %d", config.Progress)
+	fmt.Printf("\rStart %d Spider...", config.Progress)
 	config.Mux.Lock()
 	config.Progress++
 	config.Mux.Unlock()
@@ -33,7 +33,7 @@ func Spider(u string, num int) {
 
 	}()
 	u, _ = url.QueryUnescape(u)
-	if num > 1 && cmd.D != "" && !strings.Contains(u, cmd.D) {
+	if num > 1 && cmd.D != "" && !regexp.MustCompile(cmd.D).MatchString(u) {
 		return
 	}
 	if GetEndUrl(u) {
@@ -116,7 +116,7 @@ func Spider(u string, num int) {
 	scheme := response.Request.URL.Scheme
 	source := scheme + "://" + host + path
 	//处理base标签
-	re := regexp.MustCompile("base.{1,5}href.{1,5}(http.+?//[^\\s]+?)[\",',‘,“]")
+	re := regexp.MustCompile("base.{1,5}href.{1,5}(http.+?//[^\\s]+?)[\"'‘“]")
 	base := re.FindAllStringSubmatch(result, -1)
 	if len(base) > 0 {
 		host = regexp.MustCompile("http.*?//([^/]+)").FindAllStringSubmatch(base[0][1], -1)[0][1]

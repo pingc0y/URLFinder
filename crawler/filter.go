@@ -49,7 +49,7 @@ func urlFilter(str [][]string) [][]string {
 		str[i][0] = strings.Replace(str[i][0], "%3A", ":", -1)
 		str[i][0] = strings.Replace(str[i][0], "%2F", "/", -1)
 
-		//去除不存在字符串和数字的url，判断为错误数据
+		//去除不存在字符串和数字的url,判断为错误数据
 		match, _ := regexp.MatchString("[a-zA-Z]+|[0-9]+", str[i][0])
 		if !match {
 			str[i][0] = ""
