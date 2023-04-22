@@ -150,6 +150,7 @@ func Run() {
 	}
 	Initialization()
 	start(cmd.U)
+	Res()
 }
 
 func AppendJs(url string, urltjs string) {
