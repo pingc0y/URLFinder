@@ -6,7 +6,7 @@ URLFinder是一款快速、全面、易用的页面信息提取工具
 
 大致执行流程:  
 
-<img src="https://github.com/pingc0y/URLFinder/raw/master/img/process.png" width="70%"  />
+<img src="https://github.com/pingc0y/URLFinder/raw/master/img/process.png" width="85%"  />
 
 
 
