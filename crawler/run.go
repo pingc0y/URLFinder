@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"github.com/gookit/color"
 	"github.com/pingc0y/URLFinder/cmd"
@@ -79,8 +80,12 @@ func Run() {
 	if cmd.I {
 		config.GetConfig("config.yaml")
 	}
-	if cmd.H || (cmd.U == "" && cmd.F == "" && cmd.FF == "") {
-		fmt.Println("请至少使用 -u 或 -f 指定一个url")
+	if cmd.H {
+		flag.Usage()
+		os.Exit(0)
+	}
+	if cmd.U == "" && cmd.F == "" && cmd.FF == "" {
+		fmt.Println("至少使用 -u 或 -f 指定一个url")
 		os.Exit(0)
 	}
 	if cmd.U != "" && !regexp.MustCompile("https{0,1}://").MatchString(cmd.U) {
