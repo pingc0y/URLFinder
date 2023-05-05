@@ -54,7 +54,15 @@ func JsState(u string, i int, sou string) {
 	if cmd.I {
 		util.SetProxyConfig(tr)
 	}
-	client := &http.Client{Timeout: 15 * time.Second, Transport: tr}
+	var redirect string
+	client := &http.Client{Timeout: 15 * time.Second, Transport: tr,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) > 0 {
+				redirect = req.URL.String()
+			}
+			return nil
+		},
+	}
 	request, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		result.ResultJs[i].Url = ""
@@ -94,7 +102,10 @@ func JsState(u string, i int, sou string) {
 		} else {
 			length = len(dataBytes)
 		}
-		result.ResultJs[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length)}
+		if redirect != "" {
+			code = 302
+		}
+		result.ResultJs[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Redirect: redirect}
 	} else {
 		result.ResultJs[i].Url = ""
 	}
@@ -102,7 +113,6 @@ func JsState(u string, i int, sou string) {
 
 // 检测url访问状态码
 func UrlState(u string, i int) {
-
 	defer func() {
 		config.Wg.Done()
 		<-config.Urlch
@@ -138,7 +148,15 @@ func UrlState(u string, i int) {
 	if cmd.I {
 		util.SetProxyConfig(tr)
 	}
-	client := &http.Client{Timeout: 15 * time.Second, Transport: tr}
+	var redirect string
+	client := &http.Client{Timeout: 15 * time.Second, Transport: tr,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) > 0 {
+				redirect = req.URL.String()
+			}
+			return nil
+		},
+	}
 	request, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		result.ResultUrl[i].Url = ""
@@ -182,10 +200,13 @@ func UrlState(u string, i int) {
 		body := string(dataBytes)
 		re := regexp.MustCompile("<[tT]itle>(.*?)</[tT]itle>")
 		title := re.FindAllStringSubmatch(body, -1)
+		if redirect != "" {
+			code = 302
+		}
 		if len(title) != 0 {
-			result.ResultUrl[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Title: title[0][1]}
+			result.ResultUrl[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Title: title[0][1], Redirect: redirect}
 		} else {
-			result.ResultUrl[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length)}
+			result.ResultUrl[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Redirect: redirect}
 		}
 	} else {
 		result.ResultUrl[i].Url = ""

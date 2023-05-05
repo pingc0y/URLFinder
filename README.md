@@ -118,6 +118,11 @@ SET GOARCH=arm64
 go build -ldflags "-s -w" -o ./URLFinder-macos-arm64
 ```
 ## 更新说明  
+2023/5/5   
+修复 多个任务时html结果混乱  
+新增 结果添加302跳转信息  
+变化 未获取到数据时不打印与输出结果  
+
 2023/4/22   
 修复 已知bug  
 变化 -d 改为正则表达式  

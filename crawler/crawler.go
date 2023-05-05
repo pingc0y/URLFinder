@@ -20,18 +20,19 @@ import (
 // 蜘蛛抓取页面内容
 func Spider(u string, num int) {
 	var is bool
-	fmt.Printf("\rStart %d Spider...", config.Progress)
-	config.Mux.Lock()
-	config.Progress++
-	config.Mux.Unlock()
-	//标记完成
 	defer func() {
 		config.Wg.Done()
 		if !is {
 			<-config.Ch
 		}
-
 	}()
+
+	fmt.Printf("\rStart %d Spider...", config.Progress)
+	config.Mux.Lock()
+	config.Progress++
+	config.Mux.Unlock()
+	//标记完成
+
 	u, _ = url.QueryUnescape(u)
 	if num > 1 && cmd.D != "" && !regexp.MustCompile(cmd.D).MatchString(u) {
 		return

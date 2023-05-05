@@ -50,6 +50,10 @@ func outHtmlString(link mode.Link) string {
 					` + link.Title + `
 				</td>
 				<td class="ant-table-column-has-actions ant-table-column-has-sorters">
+					<a href="` + link.Redirect + `" target="_blank" style="display:inline-bconfig.Lock">
+						` + link.Redirect + ` </a>
+				</td>
+				<td class="ant-table-column-has-actions ant-table-column-has-sorters">
 					<a href="` + link.Source + `" target="_blank" style="display:inline-bconfig.Lock">
 						` + link.Source + ` </a>
 				</td>
@@ -128,7 +132,7 @@ func OutFileCsv() {
 	if cmd.S == "" {
 		resultWriter.Write([]string{"url", "Source"})
 	} else {
-		resultWriter.Write([]string{"url", "Status", "Size", "Title", "Source"})
+		resultWriter.Write([]string{"url", "Status", "Size", "Title", "Redirect", "Source"})
 	}
 	if cmd.D == "" {
 		resultWriter.Write([]string{strconv.Itoa(len(ResultJsHost)) + " JS to " + util.GetHost(cmd.U)})
@@ -138,7 +142,7 @@ func OutFileCsv() {
 
 	for _, j := range ResultJsHost {
 		if cmd.S != "" {
-			resultWriter.Write([]string{j.Url, j.Status, j.Size, "", j.Source})
+			resultWriter.Write([]string{j.Url, j.Status, j.Size, "", j.Redirect, j.Source})
 		} else {
 			resultWriter.Write([]string{j.Url, j.Source})
 		}
@@ -150,7 +154,7 @@ func OutFileCsv() {
 	}
 	for _, j := range ResultJsOther {
 		if cmd.S != "" {
-			resultWriter.Write([]string{j.Url, j.Status, j.Size, "", j.Source})
+			resultWriter.Write([]string{j.Url, j.Status, j.Size, "", j.Redirect, j.Source})
 		} else {
 			resultWriter.Write([]string{j.Url, j.Source})
 		}
@@ -165,7 +169,7 @@ func OutFileCsv() {
 
 	for _, u := range ResultUrlHost {
 		if cmd.S != "" {
-			resultWriter.Write([]string{u.Url, u.Status, u.Size, u.Title, u.Source})
+			resultWriter.Write([]string{u.Url, u.Status, u.Size, u.Title, u.Redirect, u.Source})
 		} else {
 			resultWriter.Write([]string{u.Url, u.Source})
 		}
@@ -176,7 +180,7 @@ func OutFileCsv() {
 	}
 	for _, u := range ResultUrlOther {
 		if cmd.S != "" {
-			resultWriter.Write([]string{u.Url, u.Status, u.Size, u.Title, u.Source})
+			resultWriter.Write([]string{u.Url, u.Status, u.Size, u.Title, u.Redirect, u.Source})
 		} else {
 			resultWriter.Write([]string{u.Url, u.Source})
 		}
@@ -186,7 +190,7 @@ func OutFileCsv() {
 		resultWriter.Write([]string{strconv.Itoa(len(Fuzzs)) + " URL to Fuzz"})
 		Fuzzs = util.SelectSort(Fuzzs)
 		for _, u := range Fuzzs {
-			resultWriter.Write([]string{u.Url, u.Status, u.Size, u.Title, "Fuzz"})
+			resultWriter.Write([]string{u.Url, u.Status, u.Size, u.Title, u.Redirect, "Fuzz"})
 		}
 	}
 	resultWriter.Write([]string{""})
@@ -347,6 +351,7 @@ func OutFileJson() {
 
 // 导出html
 func OutFileHtml() {
+	htmlTemp := html
 	//获取域名
 	var host string
 	re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
@@ -393,33 +398,33 @@ func OutFileHtml() {
 	writer := bufio.NewWriter(file)
 
 	if cmd.D == "" {
-		html = strings.Replace(html, "{urlHost}", util.GetHost(cmd.U), -1)
+		htmlTemp = strings.Replace(htmlTemp, "{urlHost}", util.GetHost(cmd.U), -1)
 	} else {
-		html = strings.Replace(html, "{urlHost}", cmd.D, -1)
+		htmlTemp = strings.Replace(htmlTemp, "{urlHost}", cmd.D, -1)
 	}
 	var ResultJsHostStr string
 	for _, j := range ResultJsHost {
 		ResultJsHostStr += outHtmlString(j)
 	}
-	html = strings.Replace(html, "{JS}", ResultJsHostStr, -1)
+	htmlTemp = strings.Replace(htmlTemp, "{JS}", ResultJsHostStr, -1)
 
 	var ResultJsOtherStr string
 	for _, j := range ResultJsOther {
 		ResultJsOtherStr += outHtmlString(j)
 	}
-	html = strings.Replace(html, "{JSOther}", ResultJsOtherStr, -1)
+	htmlTemp = strings.Replace(htmlTemp, "{JSOther}", ResultJsOtherStr, -1)
 
 	var ResultUrlHostStr string
 	for _, u := range ResultUrlHost {
 		ResultUrlHostStr += outHtmlString(u)
 	}
-	html = strings.Replace(html, "{URL}", ResultUrlHostStr, -1)
+	htmlTemp = strings.Replace(htmlTemp, "{URL}", ResultUrlHostStr, -1)
 
 	var ResultUrlOtherStr string
 	for _, u := range ResultUrlOther {
 		ResultUrlOtherStr += outHtmlString(u)
 	}
-	html = strings.Replace(html, "{URLOther}", ResultUrlOtherStr, -1)
+	htmlTemp = strings.Replace(htmlTemp, "{URLOther}", ResultUrlOtherStr, -1)
 
 	var FuzzsStr string
 	if cmd.S != "" && cmd.Z != 0 {
@@ -428,13 +433,13 @@ func OutFileHtml() {
 			FuzzsStr += outHtmlString(u)
 		}
 	}
-	html = strings.Replace(html, "{Fuzz}", FuzzsStr, -1)
+	htmlTemp = strings.Replace(htmlTemp, "{Fuzz}", FuzzsStr, -1)
 
 	var DomainsStr string
 	for _, u := range Domains {
 		DomainsStr += outHtmlDomainString(u)
 	}
-	html = strings.Replace(html, "{Domains}", DomainsStr, -1)
+	htmlTemp = strings.Replace(htmlTemp, "{Domains}", DomainsStr, -1)
 
 	var Infostr string
 	for i := range Infos {
@@ -462,8 +467,8 @@ func OutFileHtml() {
 			Infostr += outHtmlInfoString("Other", Infos[i].Other[i2], Infos[i].Source)
 		}
 	}
-	html = strings.Replace(html, "{Info}", Infostr, -1)
-	writer.WriteString(html)
+	htmlTemp = strings.Replace(htmlTemp, "{Info}", Infostr, -1)
+	writer.WriteString(htmlTemp)
 	writer.Flush() //内容是先写到缓存对,所以需要调用flush将缓存对数据真正写到文件中
 	fmt.Println(strconv.Itoa(len(ResultJsHost)+len(ResultJsOther))+"JS + "+strconv.Itoa(len(ResultUrlHost)+len(ResultUrlOther))+"URL --> ", file.Name())
 	return

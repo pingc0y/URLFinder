@@ -60,18 +60,22 @@ func start(u string) {
 }
 
 func Res() {
+	if len(result.ResultJs) == 0 && len(result.ResultUrl) == 0 {
+		fmt.Println("未获取到数据")
+		return
+	}
 	//打印还是输出
 	if len(cmd.O) > 0 {
 		result.OutFileJson()
 		result.OutFileCsv()
 		result.OutFileHtml()
 	} else {
+		UrlToRedirect()
 		result.Print()
 	}
 }
 
 func Run() {
-
 	if cmd.O != "" {
 		if !util.IsDir(cmd.O) {
 			return
@@ -85,7 +89,7 @@ func Run() {
 		os.Exit(0)
 	}
 	if cmd.U == "" && cmd.F == "" && cmd.FF == "" {
-		fmt.Println("至少使用 -u 或 -f 指定一个url")
+		fmt.Println("至少使用 -u -f -ff 指定一个url")
 		os.Exit(0)
 	}
 	if cmd.U != "" && !regexp.MustCompile("https{0,1}://").MatchString(cmd.U) {
@@ -107,7 +111,6 @@ func Run() {
 		}
 		r := bufio.NewReader(fi) // 创建 Reader
 		for {
-
 			lineBytes, err := r.ReadBytes('\n')
 			//去掉字符串首尾空白字符,返回字符串
 			if len(lineBytes) > 5 {
@@ -228,6 +231,20 @@ func AddSource() {
 	}
 	for i := range result.ResultUrl {
 		result.ResultUrl[i].Source = result.Urltourl[result.ResultUrl[i].Url]
+	}
+
+}
+
+func UrlToRedirect() {
+	for i := range result.ResultJs {
+		if result.ResultJs[i].Status == "302" {
+			result.ResultJs[i].Url = result.ResultJs[i].Url + " -> " + result.ResultJs[i].Redirect
+		}
+	}
+	for i := range result.ResultUrl {
+		if result.ResultUrl[i].Status == "302" {
+			result.ResultUrl[i].Url = result.ResultUrl[i].Url + " -> " + result.ResultUrl[i].Redirect
+		}
 	}
 
 }
