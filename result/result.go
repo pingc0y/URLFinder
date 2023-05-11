@@ -10,7 +10,6 @@ import (
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/mode"
 	"github.com/pingc0y/URLFinder/util"
-	"log"
 	"net/url"
 	"os"
 	"regexp"
@@ -32,6 +31,7 @@ var (
 	Jstourl  map[string]string
 	Urltourl map[string]string
 	Domains  []string
+	Redirect map[string]bool
 )
 
 func outHtmlString(link mode.Link) string {
@@ -308,7 +308,7 @@ func OutFileJson() {
 
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Printf("创建失败：%s", err)
+		fmt.Printf("创建失败：%s", err)
 		return
 	}
 	if cmd.D == "" {
@@ -334,7 +334,7 @@ func OutFileJson() {
 
 	data, err := json.Marshal(jsons)
 	if err != nil {
-		log.Printf("json化失败：%s", err)
+		fmt.Printf("json化失败：%s", err)
 		return
 	}
 	buf := bufio.NewWriter(file)
@@ -343,7 +343,7 @@ func OutFileJson() {
 	// 将缓冲中的数据写入
 	err = buf.Flush()
 	if err != nil {
-		log.Println("json保存失败:", err)
+		fmt.Println("json保存失败:", err)
 	}
 	fmt.Println(strconv.Itoa(len(ResultJsHost)+len(ResultJsOther))+"JS + "+strconv.Itoa(len(ResultUrlHost)+len(ResultUrlOther))+"URL --> ", file.Name())
 	return

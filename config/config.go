@@ -60,28 +60,38 @@ var (
 )
 
 var (
+	UrlSteps = 1
+	JsSteps  = 3
+)
+
+var (
 	Lock  sync.Mutex
 	Wg    sync.WaitGroup
 	Mux   sync.Mutex
 	Ch    = make(chan int, 50)
-	Jsch  = make(chan int, 50/2)
-	Urlch = make(chan int, 50/2)
+	Jsch  = make(chan int, 50/10*3)
+	Urlch = make(chan int, 50/10*7)
 )
 
 // 读取配置文件
 func GetConfig(path string) {
-	con := &mode.Config{}
 	if f, err := os.Open(path); err != nil {
 		if strings.Contains(err.Error(), "The system cannot find the file specified") || strings.Contains(err.Error(), "no such file or directory") {
-			con.Headers = map[string]string{"Cookie": cmd.C, "User-Agent": `Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36 SE 2.X MetaSr 1.0`, "Accept": "*/*"}
-			con.Proxy = ""
-			con.JsFind = JsFind
-			con.UrlFind = UrlFind
-			con.JsFiler = JsFiler
-			con.UrlFiler = UrlFiler
-			con.JsFuzzPath = JsFuzzPath
-			con.InfoFind = map[string][]string{"Phone": Phone, "Email": Email, "IDcard": IDcard, "Jwt": Jwt, "Other": Other}
-			data, err2 := yaml.Marshal(con)
+			Conf.Headers = map[string]string{"Cookie": cmd.C, "User-Agent": `Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36 SE 2.X MetaSr 1.0`, "Accept": "*/*"}
+			Conf.Proxy = ""
+			Conf.JsFind = JsFind
+			Conf.UrlFind = UrlFind
+			Conf.JsFiler = JsFiler
+			Conf.UrlFiler = UrlFiler
+			Conf.JsFuzzPath = JsFuzzPath
+			Conf.JsSteps = JsSteps
+			Conf.UrlSteps = UrlSteps
+			Conf.Risks = Risks
+			Conf.Timeout = cmd.TI
+			Conf.Thread = cmd.T
+			Conf.Max = cmd.MA
+			Conf.InfoFind = map[string][]string{"Phone": Phone, "Email": Email, "IDcard": IDcard, "Jwt": Jwt, "Other": Other}
+			data, err2 := yaml.Marshal(Conf)
 			err2 = os.WriteFile(path, data, 0644)
 			if err2 != nil {
 				fmt.Println(err)
@@ -94,18 +104,23 @@ func GetConfig(path string) {
 		}
 		os.Exit(1)
 	} else {
-		yaml.NewDecoder(f).Decode(con)
-		Conf = *con
-		JsFind = con.JsFind
-		UrlFind = con.UrlFind
-		JsFiler = con.JsFiler
-		UrlFiler = con.UrlFiler
-		JsFuzzPath = con.JsFuzzPath
-		Phone = con.InfoFind["Phone"]
-		Email = con.InfoFind["Email"]
-		IDcard = con.InfoFind["IDcard"]
-		Jwt = con.InfoFind["Jwt"]
-		Other = con.InfoFind["Other"]
+		yaml.NewDecoder(f).Decode(&Conf)
+		JsFind = Conf.JsFind
+		UrlFind = Conf.UrlFind
+		JsFiler = Conf.JsFiler
+		UrlFiler = Conf.UrlFiler
+		JsFuzzPath = Conf.JsFuzzPath
+		Phone = Conf.InfoFind["Phone"]
+		Email = Conf.InfoFind["Email"]
+		IDcard = Conf.InfoFind["IDcard"]
+		Jwt = Conf.InfoFind["Jwt"]
+		Other = Conf.InfoFind["Other"]
+		JsSteps = Conf.JsSteps
+		UrlSteps = Conf.UrlSteps
+		Risks = Conf.Risks
+		cmd.T = Conf.Thread
+		cmd.MA = Conf.Max
+		cmd.TI = Conf.Timeout
 	}
 
 }

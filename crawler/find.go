@@ -32,41 +32,61 @@ func jsFind(cont, host, scheme, path, source string, num int) {
 				continue
 			}
 			if strings.HasPrefix(js[0], "https:") || strings.HasPrefix(js[0], "http:") {
-				AppendJs(js[0], source)
-				if num < 5 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(js[0], num+1)
+				switch AppendJs(js[0], source) {
+				case 0:
+					if num <= config.JsSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(js[0], num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
 				}
+
 			} else if strings.HasPrefix(js[0], "//") {
-				AppendJs(scheme+":"+js[0], source)
-				if num < 5 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(scheme+":"+js[0], num+1)
+				switch AppendJs(scheme+":"+js[0], source) {
+				case 0:
+					if num <= config.JsSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(scheme+":"+js[0], num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
 				}
 
 			} else if strings.HasPrefix(js[0], "/") {
-				AppendJs(host+js[0], source)
-				if num < 5 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(host+js[0], num+1)
+				switch AppendJs(host+js[0], source) {
+				case 0:
+					if num <= config.JsSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(host+js[0], num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
 				}
-			} else if strings.HasPrefix(js[0], "./") {
-				AppendJs(host+"/"+js[0], source)
-				if num < 5 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(host+"/"+js[0], num+1)
-				}
+
 			} else {
-				AppendJs(host+cata+js[0], source)
-				if num < 5 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(host+cata+js[0], num+1)
+				switch AppendJs(host+cata+js[0], source) {
+				case 0:
+					if num <= config.JsSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(host+cata+js[0], num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
 				}
+
 			}
 		}
 
@@ -100,19 +120,32 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 				continue
 			}
 			if strings.HasPrefix(url[0], "https:") || strings.HasPrefix(url[0], "http:") {
-				AppendUrl(url[0], source)
-				if num < 2 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(url[0], num+1)
+				switch AppendUrl(url[0], source) {
+				case 0:
+					if num <= config.UrlSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(url[0], num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
 				}
 			} else if strings.HasPrefix(url[0], "//") {
-				AppendUrl(scheme+":"+url[0], source)
-				if num < 2 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(scheme+":"+url[0], num+1)
+				switch AppendUrl(scheme+":"+url[0], source) {
+				case 0:
+					if num <= config.UrlSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(scheme+":"+url[0], num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
 				}
+
 			} else if strings.HasPrefix(url[0], "/") {
 				urlz := ""
 				if cmd.B != "" {
@@ -120,11 +153,17 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 				} else {
 					urlz = host + url[0]
 				}
-				AppendUrl(urlz, source)
-				if num < 2 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(urlz, num+1)
+				switch AppendUrl(urlz, source) {
+				case 0:
+					if num <= config.UrlSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(urlz, num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
 				}
 			} else if !strings.HasSuffix(source, ".js") {
 				urlz := ""
@@ -137,19 +176,50 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 				} else {
 					urlz = host + cata + url[0]
 				}
-				AppendUrl(urlz, source)
-				if num < 2 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(urlz, num+1)
+				switch AppendUrl(urlz, source) {
+				case 0:
+					if num <= config.UrlSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(urlz, num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
 				}
+
 			} else if strings.HasSuffix(source, ".js") {
-				AppendUrl(result.Jsinurl[host+path]+url[0], source)
-				if num < 2 && (cmd.M == 2 || cmd.M == 3) {
-					config.Wg.Add(1)
-					config.Ch <- 1
-					go Spider(result.Jsinurl[host+path]+url[0], num+1)
+				urlz := ""
+				if cmd.B != "" {
+					if strings.HasSuffix(cmd.B, "/") {
+						urlz = cmd.B + url[0]
+					} else {
+						urlz = cmd.B + "/" + url[0]
+					}
+				} else {
+					config.Lock.Lock()
+					su := result.Jsinurl[source]
+					config.Lock.Unlock()
+					if strings.HasSuffix(su, "/") {
+						urlz = su + url[0]
+					} else {
+						urlz = su + "/" + url[0]
+					}
 				}
+				switch AppendUrl(urlz, source) {
+				case 0:
+					if num <= config.UrlSteps && (cmd.M == 2 || cmd.M == 3) {
+						config.Wg.Add(1)
+						config.Ch <- 1
+						go Spider(urlz, num+1)
+					}
+				case 1:
+					return
+				case 2:
+					continue
+				}
+
 			}
 		}
 	}

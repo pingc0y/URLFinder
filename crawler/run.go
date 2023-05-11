@@ -2,80 +2,28 @@ package crawler
 
 import (
 	"bufio"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"github.com/gookit/color"
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
-	"github.com/pingc0y/URLFinder/crawler/fuzz"
 	"github.com/pingc0y/URLFinder/mode"
 	"github.com/pingc0y/URLFinder/result"
 	"github.com/pingc0y/URLFinder/util"
 	"io"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
 	"time"
 )
 
-func start(u string) {
-	fmt.Println("Target URL: " + color.LightBlue.Sprintf(u))
-	config.Wg.Add(1)
-	config.Ch <- 1
-	go Spider(u, 1)
-	config.Wg.Wait()
-	config.Progress = 1
-	fmt.Printf("\r\nSpider OK \n")
-	result.ResultUrl = util.RemoveRepeatElement(result.ResultUrl)
-	result.ResultJs = util.RemoveRepeatElement(result.ResultJs)
-	if cmd.S != "" {
-		fmt.Printf("Start %d Validate...\n", len(result.ResultUrl)+len(result.ResultJs))
-		fmt.Printf("\r                                           ")
-		fuzz.JsFuzz()
-		//验证JS状态
-		for i, s := range result.ResultJs {
-			config.Wg.Add(1)
-			config.Jsch <- 1
-			go JsState(s.Url, i, result.ResultJs[i].Source)
-		}
-		//验证URL状态
-		for i, s := range result.ResultUrl {
-			config.Wg.Add(1)
-			config.Urlch <- 1
-			go UrlState(s.Url, i)
-		}
-		config.Wg.Wait()
+var client *http.Client
 
-		time.Sleep(1 * time.Second)
-		fmt.Printf("\r                                           ")
-		fmt.Printf("\rValidate OK \n\n")
-
-		if cmd.Z != 0 {
-			fuzz.UrlFuzz()
-			time.Sleep(1 * time.Second)
-		}
-	}
-	AddSource()
-
-}
-
-func Res() {
-	if len(result.ResultJs) == 0 && len(result.ResultUrl) == 0 {
-		fmt.Println("未获取到数据")
-		return
-	}
-	//打印还是输出
-	if len(cmd.O) > 0 {
-		result.OutFileJson()
-		result.OutFileCsv()
-		result.OutFileHtml()
-	} else {
-		UrlToRedirect()
-		result.Print()
-	}
-}
-
-func Run() {
+func load() {
 	if cmd.O != "" {
 		if !util.IsDir(cmd.O) {
 			return
@@ -92,16 +40,66 @@ func Run() {
 		fmt.Println("至少使用 -u -f -ff 指定一个url")
 		os.Exit(0)
 	}
-	if cmd.U != "" && !regexp.MustCompile("https{0,1}://").MatchString(cmd.U) {
+	u, ok := url.Parse(cmd.U)
+	if cmd.U != "" && ok != nil {
 		fmt.Println("url格式错误,请填写正确url")
 		os.Exit(0)
 	}
+	cmd.U = u.String()
 
 	if cmd.T != 50 {
-		config.Ch = make(chan int, cmd.T+1)
-		config.Jsch = make(chan int, cmd.T/2+1)
-		config.Urlch = make(chan int, cmd.T/2+1)
+		config.Ch = make(chan int, cmd.T)
+		config.Jsch = make(chan int, cmd.T/10*3)
+		config.Urlch = make(chan int, cmd.T/10*7)
 	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		Proxy:           http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   time.Second * 30,
+			KeepAlive: time.Second * 30,
+		}).DialContext,
+		MaxIdleConns:          cmd.T / 2,
+		MaxIdleConnsPerHost:   cmd.T + 10,
+		IdleConnTimeout:       time.Second * 90,
+		TLSHandshakeTimeout:   time.Second * 90,
+		ExpectContinueTimeout: time.Second * 10,
+	}
+
+	if cmd.X != "" {
+		proxyUrl, parseErr := url.Parse(cmd.X)
+		if parseErr != nil {
+			fmt.Println("代理地址错误: \n" + parseErr.Error())
+			os.Exit(1)
+		}
+		tr.Proxy = http.ProxyURL(proxyUrl)
+	}
+	if cmd.I {
+		util.SetProxyConfig(tr)
+	}
+	client = &http.Client{Timeout: time.Duration(cmd.TI) * time.Second,
+		Transport: tr,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("Too many redirects")
+			}
+			if len(via) > 0 {
+				if via[0] != nil && via[0].URL != nil {
+					AddRedirect(via[0].URL.String())
+				} else {
+					AddRedirect(req.URL.String())
+				}
+
+			}
+			return nil
+		},
+	}
+
+}
+
+func Run() {
+	load()
 	if cmd.F != "" {
 		// 创建句柄
 		fi, err := os.Open(cmd.F)
@@ -161,38 +159,110 @@ func Run() {
 	Res()
 }
 
-func AppendJs(url string, urltjs string) {
-	config.Lock.Lock()
-	defer config.Lock.Unlock()
-	url = strings.Replace(url, "/./", "/", -1)
-	for _, eachItem := range result.ResultJs {
-		if eachItem.Url == url {
-			return
+func start(u string) {
+	fmt.Println("Target URL: " + color.LightBlue.Sprintf(u))
+	config.Wg.Add(1)
+	config.Ch <- 1
+	go Spider(u, 1)
+	config.Wg.Wait()
+	config.Progress = 1
+	fmt.Printf("\r\nSpider OK \n")
+	result.ResultUrl = util.RemoveRepeatElement(result.ResultUrl)
+	result.ResultJs = util.RemoveRepeatElement(result.ResultJs)
+	if cmd.S != "" {
+		fmt.Printf("Start %d Validate...\n", len(result.ResultUrl)+len(result.ResultJs))
+		fmt.Printf("\r                    ")
+		JsFuzz()
+		//验证JS状态
+		for i, s := range result.ResultJs {
+			config.Wg.Add(1)
+			config.Jsch <- 1
+			go JsState(s.Url, i, result.ResultJs[i].Source)
+		}
+		//验证URL状态
+		for i, s := range result.ResultUrl {
+			config.Wg.Add(1)
+			config.Urlch <- 1
+			go UrlState(s.Url, i)
+		}
+		config.Wg.Wait()
+
+		time.Sleep(1 * time.Second)
+		fmt.Printf("\r                                           ")
+		fmt.Printf("\rValidate OK \n\n")
+
+		if cmd.Z != 0 {
+			UrlFuzz()
+			time.Sleep(1 * time.Second)
 		}
 	}
-	result.ResultJs = append(result.ResultJs, mode.Link{Url: url})
-	if strings.HasSuffix(urltjs, ".js") {
-		result.Jsinurl[url] = result.Jsinurl[urltjs]
-	} else {
-		re := regexp.MustCompile("[a-zA-z]+://[^\\s]*/|[a-zA-z]+://[^\\s]*")
-		u := re.FindAllStringSubmatch(urltjs, -1)
-		result.Jsinurl[url] = u[0][0]
-	}
-	result.Jstourl[url] = urltjs
+	AddSource()
 
 }
 
-func AppendUrl(url string, urlturl string) {
+func Res() {
+	if len(result.ResultJs) == 0 && len(result.ResultUrl) == 0 {
+		fmt.Println("未获取到数据")
+		return
+	}
+	//打印还是输出
+	if len(cmd.O) > 0 {
+		result.OutFileJson()
+		result.OutFileCsv()
+		result.OutFileHtml()
+	} else {
+		UrlToRedirect()
+		result.Print()
+	}
+}
+
+func AppendJs(ur string, urltjs string) int {
 	config.Lock.Lock()
 	defer config.Lock.Unlock()
-	url = strings.Replace(url, "/./", "/", -1)
-	for _, eachItem := range result.ResultUrl {
-		if eachItem.Url == url {
-			return
+	if len(result.ResultUrl)+len(result.ResultJs) >= cmd.MA {
+		return 1
+	}
+	_, err := url.Parse(ur)
+	if err != nil {
+		return 2
+	}
+	for _, eachItem := range result.ResultJs {
+		if eachItem.Url == ur {
+			return 0
 		}
 	}
-	result.ResultUrl = append(result.ResultUrl, mode.Link{Url: url})
-	result.Urltourl[url] = urlturl
+	result.ResultJs = append(result.ResultJs, mode.Link{Url: ur})
+	if strings.HasSuffix(urltjs, ".js") {
+		result.Jsinurl[ur] = result.Jsinurl[urltjs]
+	} else {
+		re := regexp.MustCompile("[a-zA-z]+://[^\\s]*/|[a-zA-z]+://[^\\s]*")
+		u := re.FindAllStringSubmatch(urltjs, -1)
+		result.Jsinurl[ur] = u[0][0]
+	}
+	result.Jstourl[ur] = urltjs
+	return 0
+
+}
+
+func AppendUrl(ur string, urlturl string) int {
+	config.Lock.Lock()
+	defer config.Lock.Unlock()
+	if len(result.ResultUrl)+len(result.ResultJs) >= cmd.MA {
+		return 1
+	}
+	_, err := url.Parse(ur)
+	if err != nil {
+		return 2
+	}
+	for _, eachItem := range result.ResultUrl {
+		if eachItem.Url == ur {
+			return 0
+		}
+	}
+	url.Parse(ur)
+	result.ResultUrl = append(result.ResultUrl, mode.Link{Url: ur})
+	result.Urltourl[ur] = urlturl
+	return 0
 }
 
 func AppendInfo(info mode.Info) {
@@ -223,6 +293,12 @@ func GetEndUrl(url string) bool {
 	}
 	return false
 
+}
+
+func AddRedirect(url string) {
+	config.Lock.Lock()
+	defer config.Lock.Unlock()
+	result.Redirect[url] = true
 }
 
 func AddSource() {
@@ -259,4 +335,6 @@ func Initialization() {
 	result.Jsinurl = make(map[string]string)
 	result.Jstourl = make(map[string]string)
 	result.Urltourl = make(map[string]string)
+	result.Redirect = make(map[string]bool)
+
 }

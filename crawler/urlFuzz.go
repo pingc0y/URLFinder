@@ -1,7 +1,6 @@
-package fuzz
+package crawler
 
 import (
-	"crypto/tls"
 	"fmt"
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
@@ -10,12 +9,9 @@ import (
 	"github.com/pingc0y/URLFinder/util"
 	"io"
 	"net/http"
-	"net/url"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // Fuzz
@@ -54,23 +50,6 @@ func fuzzGet(u string) {
 			}
 		}
 	}
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	//配置代理
-	if cmd.X != "" {
-		proxyUrl, parseErr := url.Parse(cmd.X)
-		if parseErr != nil {
-			fmt.Println("代理地址错误: \n" + parseErr.Error())
-			os.Exit(1)
-		}
-		tr.Proxy = http.ProxyURL(proxyUrl)
-	}
-	//加载yaml配置(proxy)
-	if cmd.I {
-		util.SetProxyConfig(tr)
-	}
-	client := &http.Client{Timeout: 10 * time.Second, Transport: tr}
 	request, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return

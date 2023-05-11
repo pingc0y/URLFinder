@@ -1,4 +1,4 @@
-package fuzz
+package crawler
 
 import (
 	"github.com/pingc0y/URLFinder/config"
