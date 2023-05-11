@@ -12,35 +12,22 @@ URLFinder是一款快速、全面、易用的页面信息提取工具
 
 有什么需求或bug欢迎各位师傅提交lssues
 
-## 功能说明:  
-
-fuzz功能是基于抓到的404目录和路径。将其当作字典,随机组合并碰撞出有效路径,从而解决路径拼接错误的问题
-
-结果会优先显示输入的url顶级域名,其他域名不做区分显示在 other    
-
-结果会优先显示200,按从小到大排序（输入的域名最优先,就算是404也会排序在其他子域名的200前面）  
-
-为了更好的兼容和防止漏抓链接,放弃了低误报率,错误的链接会变多但漏抓概率变低,可通过 ‘-s 200’ 筛选状态码过滤无效的链接（但不推荐只看200状态码）  
-
-## 使用截图
-
-[![0.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/0.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/0.jpg)   
-[![1.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/1.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/1.jpg)  
-[![2.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/2.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/2.jpg)  
-[![3.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/3.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/3.jpg)  
-[![4.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/4.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/4.jpg)  
-[![5.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/5.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/5.jpg)
-
-## 使用教程
-单url时使用  
+## 快速使用
+单url 
 ```
-URLFinder.exe -u http://www.baidu.com -s all -m 2
+显示全部状态码
+URLFinder.exe -u http://www.baidu.com -s all -m 3
 
-URLFinder.exe -u http://www.baidu.com -s 200,403 -m 2
+显示200和403状态码
+URLFinder.exe -u http://www.baidu.com -s 200,403 -m 3
 ```
-批量url时使用  
+批量url  
 ```
-URLFinder.exe -s all -m 2 -f url.txt -o d:/
+结果分开保存
+URLFinder.exe -s all -m 3 -f url.txt -o d:/
+
+结果统一保存
+URLFinder.exe -s all -m 3 -ff url.txt -o d:/
 ```
 参数（更多参数使用 -i 配置）：  
 ```
@@ -63,11 +50,29 @@ URLFinder.exe -s all -m 2 -f url.txt -o d:/
 -time 设置超时时间（默认5,单位秒）
 -u  目标URL  
 -x  设置代理,格式: http://username:password@127.0.0.1:8877
--z  提取所有目录对404链接进行fuzz(只对主域名下的链接生效,需要与-s一起使用）  
+-z  提取所有目录对404链接进行fuzz(只对主域名下的链接生效,需要与 -s 一起使用）  
         1  目录递减fuzz  
         2  2级目录组合fuzz
         3  3级目录组合fuzz（适合少量链接使用）
 ```
+## 使用截图
+
+[![0.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/0.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/0.jpg)   
+[![1.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/1.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/1.jpg)  
+[![2.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/2.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/2.jpg)  
+[![3.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/3.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/3.jpg)  
+[![4.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/4.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/4.jpg)  
+[![5.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/5.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/5.jpg)
+
+## 部分说明  
+
+fuzz功能是基于抓到的404目录和路径。将其当作字典,随机组合并碰撞出有效路径,从而解决路径拼接错误的问题
+
+结果会优先显示输入的url顶级域名,其他域名不做区分显示在 other    
+
+结果会优先显示200,按从小到大排序（输入的域名最优先,就算是404也会排序在其他子域名的200前面）  
+
+为了更好的兼容和防止漏抓链接,放弃了低误报率,错误的链接会变多但漏抓概率变低,可通过 ‘-s 200’ 筛选状态码过滤无效的链接（但不推荐只看200状态码）  
 ##  编译  
 以下是在windows环境下,编译出各平台可执行文件的命令  
 
@@ -107,6 +112,8 @@ SET GOOS=darwin
 SET GOARCH=arm64
 go build -ldflags "-s -w" -o ./URLFinder-macos-arm64
 ```
+
+
 ## 更新说明
 2023/5/11  
 变化 -i 配置文件可自定义：线程数、抓取深度、敏感路由、超时时间、最大抓取数   
