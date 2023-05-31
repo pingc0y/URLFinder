@@ -2,15 +2,12 @@ package crawler
 
 import (
 	"compress/gzip"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
@@ -20,10 +17,10 @@ import (
 
 // 蜘蛛抓取页面内容
 func Spider(u string, num int) {
-	var is bool
+	is := true
 	defer func() {
 		config.Wg.Done()
-		if !is {
+		if is {
 			<-config.Ch
 		}
 	}()
@@ -33,6 +30,7 @@ func Spider(u string, num int) {
 
 	fmt.Printf("\rStart %d Spider...", config.Progress)
 	config.Mux.Lock()
+	fmt.Printf("\rStart %d Spider...", config.Progress)
 	config.Progress++
 	config.Mux.Unlock()
 	//标记完成
@@ -52,23 +50,6 @@ func Spider(u string, num int) {
 		}
 	}
 	AppendEndUrl(u)
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	//配置代理
-	if cmd.X != "" {
-		proxyUrl, parseErr := url.Parse(cmd.X)
-		if parseErr != nil {
-			fmt.Println("代理地址错误: \n" + parseErr.Error())
-			os.Exit(1)
-		}
-		tr.Proxy = http.ProxyURL(proxyUrl)
-	} else if cmd.I {
-		//加载yaml配置
-		util.SetProxyConfig(tr)
-	}
-	client := &http.Client{Timeout: 30 * time.Second, Transport: tr}
 	request, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return
@@ -87,13 +68,32 @@ func Spider(u string, num int) {
 	}
 
 	//处理返回结果
+	//tr := &http.Transport{
+	//	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	//}
+	//client = &http.Client{Timeout: time.Duration(cmd.TI) * time.Second,
+	//	Transport: tr,
+	//	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	//		if len(via) >= 10 {
+	//			return fmt.Errorf("Too many redirects")
+	//		}
+	//		if len(via) > 0 {
+	//			if via[0] != nil && via[0].URL != nil {
+	//				result.Redirect[via[0].URL.String()] = true
+	//			} else {
+	//				result.Redirect[req.URL.String()] = true
+	//			}
+	//
+	//		}
+	//		return nil
+	//	},
+	//}
 	response, err := client.Do(request)
 	if err != nil {
 		return
-	} else {
-		defer response.Body.Close()
-
 	}
+	defer response.Body.Close()
+
 	result := ""
 	//解压
 	if response.Header.Get("Content-Encoding") == "gzip" {
@@ -133,13 +133,12 @@ func Spider(u string, num int) {
 			path = "/"
 		}
 	}
+	is = false
 	<-config.Ch
-	is = true
-
 	//提取js
-	jsFind(result, host, scheme, path, source, num)
+	jsFind(result, host, scheme, path, u, num)
 	//提取url
-	urlFind(result, host, scheme, path, source, num)
+	urlFind(result, host, scheme, path, u, num)
 	//提取信息
 	infoFind(result, source)
 
@@ -147,9 +146,9 @@ func Spider(u string, num int) {
 
 // 打印Validate进度
 func PrintProgress() {
+	config.Mux.Lock()
 	num := len(result.ResultJs) + len(result.ResultUrl)
 	fmt.Printf("\rValidate %.0f%%", float64(config.Progress+1)/float64(num+1)*100)
-	config.Mux.Lock()
 	config.Progress++
 	config.Mux.Unlock()
 }

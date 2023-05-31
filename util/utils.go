@@ -1,10 +1,12 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
 	"github.com/pingc0y/URLFinder/mode"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -12,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // 判断所给路径是否为文件夹
@@ -112,7 +115,6 @@ func SetProxyConfig(tr *http.Transport) *http.Transport {
 
 // 提取顶级域名
 func GetHost(u string) string {
-
 	re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
 	var host string
 	hosts := re.FindAllString(u, 1)
@@ -179,8 +181,8 @@ func RemoveRepeatElement(list []mode.Link) []mode.Link {
 
 // 打印Fuzz进度
 func PrintFuzz() {
-	fmt.Printf("\rFuzz %.0f%%", float64(config.Progress+1)/float64(config.FuzzNum+1)*100)
 	config.Mux.Lock()
+	fmt.Printf("\rFuzz %.0f%%", float64(config.Progress+1)/float64(config.FuzzNum+1)*100)
 	config.Progress++
 	config.Mux.Unlock()
 }
@@ -365,4 +367,41 @@ func GetUserAgent() string {
 		cmd.A = uas[rand.Intn(nuas)]
 	}
 	return cmd.A
+}
+
+func GetUpdate() {
+
+	url := fmt.Sprintf("https://api.github.com/repos/pingc0y/URLFinder/releases/latest")
+	client := &http.Client{
+		Timeout: time.Second * 2,
+	}
+	resp, err := client.Get(url)
+	if err != nil {
+		cmd.XUpdate = "更新检测失败"
+		return
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		cmd.XUpdate = "更新检测失败"
+		return
+	}
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	err = json.Unmarshal(body, &release)
+	if err != nil {
+		cmd.XUpdate = "更新检测失败"
+		return
+	}
+	if release.TagName == "" {
+		cmd.XUpdate = "更新检测失败"
+		return
+	}
+	if cmd.Update != release.TagName {
+		cmd.XUpdate = "有新版本可用: " + release.TagName
+	} else {
+		cmd.XUpdate = "已是最新版本"
+	}
+
 }
