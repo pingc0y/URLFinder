@@ -1,12 +1,13 @@
 package crawler
 
 import (
+	"regexp"
+	"strings"
+
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
 	"github.com/pingc0y/URLFinder/mode"
 	"github.com/pingc0y/URLFinder/result"
-	"regexp"
-	"strings"
 )
 
 // 分析内容中的js
@@ -93,7 +94,6 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 		urls := reg.FindAllStringSubmatch(cont, -1)
 		//fmt.Println(urls)
 		urls = urlFilter(urls)
-
 		//循环提取url放到结果中
 		for _, url := range urls {
 			if url[0] == "" {

@@ -4,10 +4,6 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"fmt"
-	"github.com/pingc0y/URLFinder/cmd"
-	"github.com/pingc0y/URLFinder/config"
-	"github.com/pingc0y/URLFinder/result"
-	"github.com/pingc0y/URLFinder/util"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +11,11 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/pingc0y/URLFinder/cmd"
+	"github.com/pingc0y/URLFinder/config"
+	"github.com/pingc0y/URLFinder/result"
+	"github.com/pingc0y/URLFinder/util"
 )
 
 // 蜘蛛抓取页面内容
@@ -26,6 +27,9 @@ func Spider(u string, num int) {
 			<-config.Ch
 		}
 	}()
+
+	//去除url里的/.. ,否则这个请求会报400错误
+	u = strings.Replace(u, "/..", "", -1)
 
 	fmt.Printf("\rStart %d Spider...", config.Progress)
 	config.Mux.Lock()
@@ -64,7 +68,7 @@ func Spider(u string, num int) {
 		//加载yaml配置
 		util.SetProxyConfig(tr)
 	}
-	client := &http.Client{Timeout: 10 * time.Second, Transport: tr}
+	client := &http.Client{Timeout: 30 * time.Second, Transport: tr}
 	request, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return

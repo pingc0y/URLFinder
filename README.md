@@ -54,6 +54,10 @@ URLFinder.exe -u http://www.baidu.com -s 200,403 -m 2
 ```
 URLFinder.exe -s all -m 2 -f url.txt -o d:/
 ```
+需要设置baseurl使，比如前端url是这种形式的展示 https://x.x.x.x:8000/#/adminpage
+```
+URLFinder.exe -s all -m 2 -f url.txt -b https://x.x.x.x:8000/#
+```
 参数：  
 ```
 -a  自定义user-agent请求头  
