@@ -55,11 +55,11 @@ func fuzzGet(u string) {
 		return
 	}
 	if cmd.C != "" {
-		request.Header.Add("Cookie", cmd.C)
+		request.Header.Set("Cookie", cmd.C)
 	}
 	//增加header选项
-	request.Header.Add("User-Agent", util.GetUserAgent())
-	request.Header.Add("Accept", "*/*")
+	request.Header.Set("User-Agent", util.GetUserAgent())
+	request.Header.Set("Accept", "*/*")
 	//加载yaml配置
 	if cmd.I {
 		util.SetHeadersConfig(&request.Header)

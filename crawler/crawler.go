@@ -50,12 +50,12 @@ func Spider(u string, num int) {
 		return
 	}
 
-	request.Header.Add("Accept-Encoding", "gzip") //使用gzip压缩传输数据让访问更快
-	request.Header.Add("User-Agent", util.GetUserAgent())
-	request.Header.Add("Accept", "*/*")
+	request.Header.Set("Accept-Encoding", "gzip") //使用gzip压缩传输数据让访问更快
+	request.Header.Set("User-Agent", util.GetUserAgent())
+	request.Header.Set("Accept", "*/*")
 	//增加header选项
 	if cmd.C != "" {
-		request.Header.Add("Cookie", cmd.C)
+		request.Header.Set("Cookie", cmd.C)
 	}
 	//加载yaml配置(headers)
 	if cmd.I {

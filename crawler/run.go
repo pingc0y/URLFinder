@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/gookit/color"
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
 	"github.com/pingc0y/URLFinder/mode"
@@ -24,11 +23,7 @@ import (
 var client *http.Client
 
 func load() {
-	if cmd.O != "" {
-		if !util.IsDir(cmd.O) {
-			return
-		}
-	}
+
 	if cmd.I {
 		config.GetConfig("config.yaml")
 	}
@@ -68,6 +63,7 @@ func load() {
 	}
 
 	if cmd.X != "" {
+		tr.DisableKeepAlives = true
 		proxyUrl, parseErr := url.Parse(cmd.X)
 		if parseErr != nil {
 			fmt.Println("代理地址错误: \n" + parseErr.Error())
@@ -112,7 +108,7 @@ func Run() {
 			lineBytes, err := r.ReadBytes('\n')
 			//去掉字符串首尾空白字符,返回字符串
 			if len(lineBytes) > 5 {
-				line := strings.TrimSpace(string(lineBytes))
+				line := util.GetProtocol(strings.TrimSpace(string(lineBytes)))
 				cmd.U = line
 				Initialization()
 				start(cmd.U)
@@ -139,7 +135,7 @@ func Run() {
 			lineBytes, err := r.ReadBytes('\n')
 			//去掉字符串首尾空白字符,返回字符串
 			if len(lineBytes) > 5 {
-				line := strings.TrimSpace(string(lineBytes))
+				line := util.GetProtocol(strings.TrimSpace(string(lineBytes)))
 				if cmd.U == "" {
 					cmd.U = line
 				}
@@ -155,12 +151,13 @@ func Run() {
 		return
 	}
 	Initialization()
+	cmd.U = util.GetProtocol(cmd.U)
 	start(cmd.U)
 	Res()
 }
 
 func start(u string) {
-	fmt.Println("Target URL: " + color.LightBlue.Sprintf(u))
+	fmt.Println("Target URL: " + u)
 	config.Wg.Add(1)
 	config.Ch <- 1
 	go Spider(u, 1)
@@ -207,9 +204,17 @@ func Res() {
 	}
 	//打印还是输出
 	if len(cmd.O) > 0 {
-		result.OutFileJson()
-		result.OutFileCsv()
-		result.OutFileHtml()
+		if strings.HasSuffix(cmd.O, ".json") {
+			result.OutFileJson(cmd.O)
+		} else if strings.HasSuffix(cmd.O, ".html") {
+			result.OutFileHtml(cmd.O)
+		} else if strings.HasSuffix(cmd.O, ".csv") {
+			result.OutFileCsv(cmd.O)
+		} else {
+			result.OutFileJson("")
+			result.OutFileCsv("")
+			result.OutFileHtml("")
+		}
 	} else {
 		UrlToRedirect()
 		result.Print()

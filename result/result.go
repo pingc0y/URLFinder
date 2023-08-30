@@ -87,7 +87,7 @@ func outHtmlDomainString(domain string) string {
 }
 
 // 导出csv
-func OutFileCsv() {
+func OutFileCsv(out string) {
 	//获取域名
 	var host string
 	re := regexp.MustCompile("([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
@@ -106,20 +106,25 @@ func OutFileCsv() {
 	ResultJsHost, ResultJsOther := util.UrlDispose(ResultJs, host, util.GetHost(cmd.U))
 	ResultUrlHost, ResultUrlOther := util.UrlDispose(ResultUrl, host, util.GetHost(cmd.U))
 	Domains = util.GetDomains(util.MergeArray(ResultJs, ResultUrl))
-	//输出到文件
-	if strings.Contains(host, ":") {
-		host = strings.Replace(host, ":", "：", -1)
-	}
-	//在当前文件夹创建文件夹
-	err := os.MkdirAll(cmd.O+"/"+host, 0755)
-	if err != nil {
-		fmt.Printf(cmd.O+"/"+host+" 目录创建失败 ：%s", err)
-		return
-	}
-	//多相同url处理
-	fileName := cmd.O + "/" + host + "/" + host + ".csv"
-	for fileNum := 1; util.Exists(fileName); fileNum++ {
-		fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").csv"
+	var fileName string
+	if out != "" {
+		fileName = out
+	} else {
+		//输出到文件
+		if strings.Contains(host, ":") {
+			host = strings.Replace(host, ":", "：", -1)
+		}
+		//在当前文件夹创建文件夹
+		err := os.MkdirAll(cmd.O+"/"+host, 0755)
+		if err != nil {
+			fmt.Printf(cmd.O+"/"+host+" 目录创建失败 ：%s", err)
+			return
+		}
+		//多相同url处理
+		fileName = cmd.O + "/" + host + "/" + host + ".csv"
+		for fileNum := 1; util.Exists(fileName); fileNum++ {
+			fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").csv"
+		}
 	}
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 
@@ -242,7 +247,7 @@ func OutFileCsv() {
 }
 
 // 导出json
-func OutFileJson() {
+func OutFileJson(out string) {
 	jsons := make(map[string]interface{})
 	var info map[string][]map[string]string
 	//获取域名
@@ -290,22 +295,26 @@ func OutFileJson() {
 		}
 	}
 
-	//输出到文件
-	if strings.Contains(host, ":") {
-		host = strings.Replace(host, ":", "：", -1)
+	var fileName string
+	if out != "" {
+		fileName = out
+	} else {
+		//输出到文件
+		if strings.Contains(host, ":") {
+			host = strings.Replace(host, ":", "：", -1)
+		}
+		//在当前文件夹创建文件夹
+		err := os.MkdirAll(cmd.O+"/"+host, 0755)
+		if err != nil {
+			fmt.Printf(cmd.O+"/"+host+" 目录创建失败 ：%s", err)
+			return
+		}
+		//多相同url处理
+		fileName = cmd.O + "/" + host + "/" + host + ".json"
+		for fileNum := 1; util.Exists(fileName); fileNum++ {
+			fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").json"
+		}
 	}
-	//在当前文件夹创建文件夹
-	err := os.MkdirAll(cmd.O+"/"+host, 0755)
-	if err != nil {
-		fmt.Printf(cmd.O+"/"+host+" 目录创建失败 ：%s", err)
-		return
-	}
-	//多相同url处理
-	fileName := cmd.O + "/" + host + "/" + host + ".json"
-	for fileNum := 1; util.Exists(fileName); fileNum++ {
-		fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").json"
-	}
-
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("创建失败：%s", err)
@@ -350,7 +359,7 @@ func OutFileJson() {
 }
 
 // 导出html
-func OutFileHtml() {
+func OutFileHtml(out string) {
 	htmlTemp := html
 	//获取域名
 	var host string
@@ -370,20 +379,26 @@ func OutFileHtml() {
 	ResultJsHost, ResultJsOther := util.UrlDispose(ResultJs, host, util.GetHost(cmd.U))
 	ResultUrlHost, ResultUrlOther := util.UrlDispose(ResultUrl, host, util.GetHost(cmd.U))
 	Domains = util.GetDomains(util.MergeArray(ResultJs, ResultUrl))
-	//输出到文件
-	if strings.Contains(host, ":") {
-		host = strings.Replace(host, ":", "：", -1)
-	}
-	//在当前文件夹创建文件夹
-	err := os.MkdirAll(cmd.O+"/"+host, 0755)
-	if err != nil {
-		fmt.Printf(cmd.O+"/"+host+" 目录创建失败 ：%s", err)
-		return
-	}
-	//多相同url处理
-	fileName := cmd.O + "/" + host + "/" + host + ".html"
-	for fileNum := 1; util.Exists(fileName); fileNum++ {
-		fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").html"
+
+	var fileName string
+	if out != "" {
+		fileName = out
+	} else {
+		//输出到文件
+		if strings.Contains(host, ":") {
+			host = strings.Replace(host, ":", "：", -1)
+		}
+		//在当前文件夹创建文件夹
+		err := os.MkdirAll(cmd.O+"/"+host, 0755)
+		if err != nil {
+			fmt.Printf(cmd.O+"/"+host+" 目录创建失败 ：%s", err)
+			return
+		}
+		//多相同url处理
+		fileName = cmd.O + "/" + host + "/" + host + ".html"
+		for fileNum := 1; util.Exists(fileName); fileNum++ {
+			fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").html"
+		}
 	}
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 
@@ -525,8 +540,8 @@ func Print() {
 			} else {
 				fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j.Url) + color.LightRed.Sprintf(" [ Status: %s, Size: %s, Source: %s ]\n", j.Status, j.Size, j.Source))
 			}
-		} else if cmd.S == "" {
-			fmt.Printf(color.LightBlue.Sprintf(j.Url) + "\n")
+		} else {
+			fmt.Println(j.Url)
 		}
 	}
 	if cmd.D == "" {
@@ -542,7 +557,7 @@ func Print() {
 				fmt.Printf(color.LightBlue.Sprintf("%-"+jlen+"s", j.Url) + color.LightRed.Sprintf(" [ Status: %s, Size: %s, Source: %s ]\n", j.Status, j.Size, j.Source))
 			}
 		} else {
-			fmt.Printf(color.LightBlue.Sprintf(j.Url) + "\n")
+			fmt.Println(j.Url)
 		}
 	}
 
@@ -578,7 +593,7 @@ func Print() {
 				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u.Url) + color.LightRed.Sprintf(" [ Status: %s, Size: %s, Source: %s ]\n", u.Status, u.Size, u.Source))
 			}
 		} else {
-			fmt.Printf(color.LightBlue.Sprintf(u.Url) + "\n")
+			fmt.Println(u.Url)
 		}
 	}
 	if cmd.D == "" {
@@ -608,7 +623,7 @@ func Print() {
 				fmt.Printf(color.LightBlue.Sprintf("%-"+ulen+"s", u.Url) + color.LightRed.Sprintf(" [ Status: %s, Size: %s, Source: %s ]\n", u.Status, u.Size, u.Source))
 			}
 		} else {
-			fmt.Printf(color.LightBlue.Sprintf(u.Url) + "\n")
+			fmt.Println(u.Url)
 		}
 	}
 

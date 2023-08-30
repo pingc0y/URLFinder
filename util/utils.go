@@ -1,6 +1,7 @@
 package util
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/pingc0y/URLFinder/cmd"
@@ -16,16 +17,6 @@ import (
 	"strings"
 	"time"
 )
-
-// 判断所给路径是否为文件夹
-func IsDir(path string) bool {
-	s, err := os.Stat(path)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	return s.IsDir()
-}
 
 // MergeArray 合并数组
 func MergeArray(dest []mode.Link, src []mode.Link) (result []mode.Link) {
@@ -95,7 +86,7 @@ func UrlDispose(arr []mode.Link, url, host string) ([]mode.Link, []mode.Link) {
 // 处理Headers配置
 func SetHeadersConfig(header *http.Header) *http.Header {
 	for k, v := range config.Conf.Headers {
-		header.Add(k, v)
+		header.Set(k, v)
 	}
 	return header
 }
@@ -103,6 +94,7 @@ func SetHeadersConfig(header *http.Header) *http.Header {
 // 设置proxy配置
 func SetProxyConfig(tr *http.Transport) *http.Transport {
 	if len(config.Conf.Proxy) > 0 {
+		tr.DisableKeepAlives = true
 		proxyUrl, parseErr := url.Parse(config.Conf.Proxy)
 		if parseErr != nil {
 			fmt.Println("代理地址错误: \n" + parseErr.Error())
@@ -111,6 +103,26 @@ func SetProxyConfig(tr *http.Transport) *http.Transport {
 		tr.Proxy = http.ProxyURL(proxyUrl)
 	}
 	return tr
+}
+
+// 判断http协议
+func GetProtocol(domain string) string {
+	if strings.HasPrefix(domain, "http") {
+		return domain
+	}
+	response, err := http.Get("http://" + domain)
+	if err != nil {
+		return "http://" + domain
+	}
+	defer response.Body.Close()
+	if response.TLS == nil {
+		return "http://" + domain
+	}
+	response, err = http.Get("https://" + domain)
+	if err != nil {
+		return "https://" + domain
+	}
+	return ""
 }
 
 // 提取顶级域名
@@ -374,6 +386,10 @@ func GetUpdate() {
 	url := fmt.Sprintf("https://api.github.com/repos/pingc0y/URLFinder/releases/latest")
 	client := &http.Client{
 		Timeout: time.Second * 2,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			Proxy:           http.ProxyFromEnvironment,
+		},
 	}
 	resp, err := client.Get(url)
 	if err != nil {

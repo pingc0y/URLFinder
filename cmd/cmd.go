@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var Update = "2023.5.11"
+var Update = "2023.8.30"
 var XUpdate string
 
 var (
@@ -41,7 +41,7 @@ func init() {
 	flag.BoolVar(&I, "i", false, "set configFile\n加载yaml配置文件（不存在时,会在当前目录创建一个默认yaml配置文件）")
 	flag.IntVar(&M, "m", 1, "set mode\n抓取模式 \n   1 normal\n     正常抓取（默认） \n   2 thorough\n     深入抓取（默认url深入一层,js深入三层,-i可以自定义） \n   3 security\n     安全深入抓取（过滤delete,remove等敏感路由.-i可自定义） ")
 	flag.IntVar(&MA, "max", 99999, "set maximum\n最大抓取链接数")
-	flag.StringVar(&O, "o", "", "set outFile\n结果导出到csv、json、html文件,需指定导出文件目录（.代表当前目录）")
+	flag.StringVar(&O, "o", "", "set outFile\n结果导出到csv、json、html文件,需指定导出文件目录,可填写完整文件名只导出一种类型（.代表当前目录）")
 	flag.StringVar(&S, "s", "", "set Status\n显示指定状态码,all为显示全部（多个状态码用,隔开）")
 	flag.IntVar(&T, "t", 50, "set Thread\n设置线程数（默认50）")
 	flag.IntVar(&TI, "time", 5, "set Timeout\n设置超时时间（默认5,单位秒）")
