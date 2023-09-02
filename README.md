@@ -118,6 +118,9 @@ go build -ldflags "-s -w" -o ./URLFinder-macos-arm64
 
 
 ## 更新说明
+2023/9/2  
+修复 子目录定位bug   
+
 2023/8/30  
 修复 -i 配置请求头错误问题   
 变化 支持自动识别http/https  

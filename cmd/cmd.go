@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var Update = "2023.8.30"
+var Update = "2023.9.2"
 var XUpdate string
 
 var (
