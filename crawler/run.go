@@ -139,7 +139,7 @@ func Run() {
 				if cmd.U == "" {
 					cmd.U = line
 				}
-				start(line)
+				startFF(line)
 				fmt.Println("----------------------------------------")
 			}
 
@@ -147,6 +147,7 @@ func Run() {
 				break
 			}
 		}
+		ValidateFF()
 		Res()
 		return
 	}
@@ -154,6 +155,48 @@ func Run() {
 	cmd.U = util.GetProtocol(cmd.U)
 	start(cmd.U)
 	Res()
+}
+func startFF(u string) {
+	fmt.Println("Target URL: " + u)
+	config.Wg.Add(1)
+	config.Ch <- 1
+	go Spider(u, 1)
+	config.Wg.Wait()
+	config.Progress = 1
+	fmt.Printf("\r\nSpider OK \n")
+}
+
+func ValidateFF() {
+	result.ResultUrl = util.RemoveRepeatElement(result.ResultUrl)
+	result.ResultJs = util.RemoveRepeatElement(result.ResultJs)
+	if cmd.S != "" {
+		fmt.Printf("Start %d Validate...\n", len(result.ResultUrl)+len(result.ResultJs))
+		fmt.Printf("\r                    ")
+		JsFuzz()
+		//验证JS状态
+		for i, s := range result.ResultJs {
+			config.Wg.Add(1)
+			config.Jsch <- 1
+			go JsState(s.Url, i, result.ResultJs[i].Source)
+		}
+		//验证URL状态
+		for i, s := range result.ResultUrl {
+			config.Wg.Add(1)
+			config.Urlch <- 1
+			go UrlState(s.Url, i)
+		}
+		config.Wg.Wait()
+
+		time.Sleep(1 * time.Second)
+		fmt.Printf("\r                                           ")
+		fmt.Printf("\rValidate OK \n\n")
+
+		if cmd.Z != 0 {
+			UrlFuzz()
+			time.Sleep(1 * time.Second)
+		}
+	}
+	AddSource()
 }
 
 func start(u string) {
@@ -194,7 +237,6 @@ func start(u string) {
 		}
 	}
 	AddSource()
-
 }
 
 func Res() {
