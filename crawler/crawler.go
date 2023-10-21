@@ -2,16 +2,15 @@ package crawler
 
 import (
 	"compress/gzip"
-	"fmt"
-	"github.com/pingc0y/URLFinder/cmd"
-	"github.com/pingc0y/URLFinder/config"
-	"github.com/pingc0y/URLFinder/result"
-	"github.com/pingc0y/URLFinder/util"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/pingc0y/URLFinder/cmd"
+	"github.com/pingc0y/URLFinder/config"
+	"github.com/pingc0y/URLFinder/util"
 )
 
 // 蜘蛛抓取页面内容
@@ -25,7 +24,7 @@ func Spider(u string, num int) {
 
 	}()
 	config.Mux.Lock()
-	fmt.Printf("\rStart %d Spider...", config.Progress)
+	// fmt.Printf("\rStart %d Spider...", config.Progress)
 	config.Progress++
 	config.Mux.Unlock()
 	//标记完成
@@ -53,6 +52,12 @@ func Spider(u string, num int) {
 	request.Header.Set("Accept-Encoding", "gzip") //使用gzip压缩传输数据让访问更快
 	request.Header.Set("User-Agent", util.GetUserAgent())
 	request.Header.Set("Accept", "*/*")
+	u_str, err := url.Parse(u)
+	if err != nil {
+		return
+	}
+	request.Header.Set("Referer", u_str.Scheme+"://"+u_str.Host) //####
+
 	//增加header选项
 	if cmd.C != "" {
 		request.Header.Set("Cookie", cmd.C)
@@ -62,27 +67,6 @@ func Spider(u string, num int) {
 		util.SetHeadersConfig(&request.Header)
 	}
 
-	//处理返回结果
-	//tr := &http.Transport{
-	//	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	//}
-	//client = &http.Client{Timeout: time.Duration(cmd.TI) * time.Second,
-	//	Transport: tr,
-	//	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-	//		if len(via) >= 10 {
-	//			return fmt.Errorf("Too many redirects")
-	//		}
-	//		if len(via) > 0 {
-	//			if via[0] != nil && via[0].URL != nil {
-	//				result.Redirect[via[0].URL.String()] = true
-	//			} else {
-	//				result.Redirect[req.URL.String()] = true
-	//			}
-	//
-	//		}
-	//		return nil
-	//	},
-	//}
 	response, err := client.Do(request)
 	if err != nil {
 		return
@@ -115,6 +99,7 @@ func Spider(u string, num int) {
 	host := response.Request.URL.Host
 	scheme := response.Request.URL.Scheme
 	source := scheme + "://" + host + path
+	judge_base := false //####
 	//处理base标签
 	re := regexp.MustCompile("base.{1,5}href.{1,5}(http.+?//[^\\s]+?)[\"'‘“]")
 	base := re.FindAllStringSubmatch(result, -1)
@@ -127,13 +112,76 @@ func Spider(u string, num int) {
 		} else {
 			path = "/"
 		}
+	} else { //####
+		re := regexp.MustCompile("(?i)base.{0,5}[:=]\\s*\"(.*?)\"")
+		base := re.FindAllStringSubmatch(result, -1)
+		if len(base) > 0 {
+			pattern := "[^.\\/\\w]"
+			re, _ := regexp.Compile(pattern)
+			// 检查字符串是否包含匹配的字符
+			result := re.MatchString(base[0][1])
+			if !result { // 字符串中没有其他字符
+				if len(base[0][1]) > 1 && base[0][1][:2] == "./" { // base路径从当前目录出发
+					judge_base = true
+					path = path[:strings.LastIndex(path, "/")] + base[0][1][1:]
+				} else if len(base[0][1]) > 2 && base[0][1][:3] == "../" {  // base路径从上一级目录出发
+					judge_base = true
+					pattern := "^[./]+$"
+					matched, _ := regexp.MatchString(pattern, base[0][1])
+					if matched { 	// 仅处理的base路径中只有 ./ 的
+						path = path[:strings.LastIndex(path, "/")+1] + base[0][1]
+					} else {
+						find_str := ""
+						if strings.Contains(strings.TrimPrefix(base[0][1], "../"), "/") {
+							find_str = base[0][1][3 : strings.Index(strings.TrimPrefix(base[0][1], "../"), "/")+3]
+						} else {
+							find_str = base[0][1][3:]
+						}
+						if strings.Contains(path, find_str) {
+							path = path[:strings.Index(path, find_str)] + base[0][1][3:]
+						} else {
+							path = path[:strings.LastIndex(path, "/")+1] + base[0][1]
+						}
+					}
+				} else if len(base[0][1]) > 4 && strings.HasPrefix(base[0][1], "http") { //目录从http
+					judge_base = true
+					path = base[0][1]
+				} else if len(base[0][1]) > 0 {
+					judge_base = true
+					if base[0][1][0] == 47 { //base路径从根目录出发
+						path = base[0][1]
+					} else { //base路径未指明从哪路出发
+						find_str := ""
+						if strings.Contains(base[0][1], "/") {
+							find_str = base[0][1][:strings.Index(base[0][1], "/")]
+						} else {
+							find_str = base[0][1]
+						}
+						if strings.Contains(path, find_str) {
+							path = path[:strings.Index(path, find_str)] + base[0][1]
+						} else {
+							path = path[:strings.LastIndex(path, "/")+1] + base[0][1]
+						}
+					}
+				}
+				if !strings.HasSuffix(path, "/") {
+					path += "/"
+				}
+			}
+		}
 	}
+
 	is = false
 	<-config.Ch
 	//提取js
-	jsFind(result, host, scheme, path, u, num)
+	jsFind(result, host, scheme, path, u, num, judge_base)
 	//提取url
-	urlFind(result, host, scheme, path, u, num)
+	urlFind(result, host, scheme, path, u, num, judge_base)
+	// 防止base判断错误
+	if judge_base {
+		jsFind(result, host, scheme, path, u, num, false)
+		urlFind(result, host, scheme, path, u, num, false)
+	}
 	//提取信息
 	infoFind(result, source)
 
@@ -142,8 +190,8 @@ func Spider(u string, num int) {
 // 打印Validate进度
 func PrintProgress() {
 	config.Mux.Lock()
-	num := len(result.ResultJs) + len(result.ResultUrl)
-	fmt.Printf("\rValidate %.0f%%", float64(config.Progress+1)/float64(num+1)*100)
+	// num := len(result.ResultJs) + len(result.ResultUrl)
+	// fmt.Printf("\rValidate %.0f%%", float64(config.Progress+1)/float64(num+1)*100)
 	config.Progress++
 	config.Mux.Unlock()
 }
