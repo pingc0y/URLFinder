@@ -313,7 +313,7 @@ func extractBase(host, scheme, path, result string) (string, string, string, boo
 
 // 获取网页加载的事件的响应体
 func rod_spider(u string, num int) {
-	// 初始化浏览器
+	// 初始化浏览器，无头浏览器：Headless(true)
 	launch := launcher.New().Headless(false).Set("test-type").Set("ignore-certificate-errors").
 		NoSandbox(true).Set("disable-gpu").Set("disable-plugins").Set("incognito").
 		Set("no-default-browser-check").Set("disable-dev-shm-usage").
