@@ -1,27 +1,34 @@
 package crawler
 
 import (
-	"github.com/pingc0y/URLFinder/cmd"
-	"github.com/pingc0y/URLFinder/config"
-	"github.com/pingc0y/URLFinder/mode"
-	"github.com/pingc0y/URLFinder/result"
-	"github.com/pingc0y/URLFinder/util"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pingc0y/URLFinder/cmd"
+	"github.com/pingc0y/URLFinder/config"
+	"github.com/pingc0y/URLFinder/mode"
+	"github.com/pingc0y/URLFinder/result"
+	"github.com/pingc0y/URLFinder/util"
 )
 
 // 检测js访问状态码
-func JsState(u string, i int, sou string) {
+func JsState(u string, i int, sou string, rod_flag bool) {
 
 	defer func() {
 		config.Wg.Done()
 		<-config.Jsch
 		PrintProgress()
 	}()
+
+	// 首页动态加载的数据 已经存储
+	if rod_flag {
+		return
+	}
+
 	if cmd.S == "" {
 		result.ResultJs[i].Url = u
 		return
@@ -53,6 +60,12 @@ func JsState(u string, i int, sou string) {
 	//增加header选项
 	request.Header.Set("User-Agent", util.GetUserAgent())
 	request.Header.Set("Accept", "*/*")
+	u_str, err := url.Parse(u)
+	if err != nil {
+		return
+	}
+	request.Header.Set("Referer", u_str.Scheme+"://"+u_str.Host) //####
+
 	//加载yaml配置
 	if cmd.I {
 		util.SetHeadersConfig(&request.Header)
@@ -99,25 +112,41 @@ func JsState(u string, i int, sou string) {
 		} else {
 			length = len(dataBytes)
 		}
+
+		res_body := string(dataBytes)
+		res_headers := make(map[string]string, 0)
+		// 遍历响应头中的所有键值对
+		for k, v := range response.Header {
+			// 如果值是一个切片，取第一个元素作为值，否则忽略该键值对
+			if len(v) > 0 {
+				res_headers[k] = v[0]
+			}
+		}
+
 		config.Lock.Lock()
 		if result.Redirect[ur.String()] {
 			code = 302
 			redirect = response.Request.URL.String()
 		}
 		config.Lock.Unlock()
-		result.ResultJs[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Redirect: redirect}
+		result.ResultJs[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Redirect: redirect, ResponseHeaders: res_headers, ResponseBody: res_body}
 	} else {
 		result.ResultJs[i].Url = ""
 	}
 }
 
 // 检测url访问状态码
-func UrlState(u string, i int) {
+func UrlState(u string, i int, rod_flag bool) {
 	defer func() {
 		config.Wg.Done()
 		<-config.Urlch
 		PrintProgress()
 	}()
+
+	// 首页动态加载的数据 已经存储
+	if rod_flag {
+		return
+	}
 	if cmd.S == "" {
 		result.ResultUrl[i].Url = u
 		return
@@ -148,6 +177,11 @@ func UrlState(u string, i int) {
 	//增加header选项
 	request.Header.Set("User-Agent", util.GetUserAgent())
 	request.Header.Set("Accept", "*/*")
+	u_str, err := url.Parse(u)
+	if err != nil {
+		return
+	}
+	request.Header.Set("Referer", u_str.Scheme+"://"+u_str.Host) //####
 
 	//加载yaml配置
 	if cmd.I {
@@ -194,9 +228,19 @@ func UrlState(u string, i int) {
 		} else {
 			length = len(dataBytes)
 		}
-		body := string(dataBytes)
+
+		res_body := string(dataBytes)
+		res_headers := make(map[string]string, 0)
+		// 遍历响应头中的所有键值对
+		for k, v := range response.Header {
+			// 如果值是一个切片，取第一个元素作为值，否则忽略该键值对
+			if len(v) > 0 {
+				res_headers[k] = v[0]
+			}
+		}
+
 		re := regexp.MustCompile("<[tT]itle>(.*?)</[tT]itle>")
-		title := re.FindAllStringSubmatch(body, -1)
+		title := re.FindAllStringSubmatch(res_body, -1)
 		config.Lock.Lock()
 		if result.Redirect[ur.String()] {
 			code = 302
@@ -205,9 +249,9 @@ func UrlState(u string, i int) {
 		config.Lock.Unlock()
 
 		if len(title) != 0 {
-			result.ResultUrl[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Title: title[0][1], Redirect: redirect}
+			result.ResultUrl[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Title: title[0][1], Redirect: redirect, ResponseHeaders: res_headers, ResponseBody: res_body}
 		} else {
-			result.ResultUrl[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Redirect: redirect}
+			result.ResultUrl[i] = mode.Link{Url: u, Status: strconv.Itoa(code), Size: strconv.Itoa(length), Redirect: redirect, ResponseHeaders: res_headers, ResponseBody: res_body}
 		}
 	} else {
 		result.ResultUrl[i].Url = ""
