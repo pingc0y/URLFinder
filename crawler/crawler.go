@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
+	"github.com/pingc0y/URLFinder/result"
 	"github.com/pingc0y/URLFinder/util"
 )
 
@@ -24,7 +26,7 @@ func Spider(u string, num int) {
 
 	}()
 	config.Mux.Lock()
-	// fmt.Printf("\rStart %d Spider...", config.Progress)
+	fmt.Printf("\rStart %d Spider...", config.Progress)
 	config.Progress++
 	config.Mux.Unlock()
 	//标记完成
@@ -120,15 +122,15 @@ func Spider(u string, num int) {
 			re, _ := regexp.Compile(pattern)
 			// 检查字符串是否包含匹配的字符
 			result := re.MatchString(base[0][1])
-			if !result { // 字符串中没有其他字符
-				if len(base[0][1]) > 1 && base[0][1][:2] == "./" { // base路径从当前目录出发
+			if !result { // 字符串中没有其他特殊字符
+				if len(base[0][1]) > 1 && base[0][1][:2] == "./" { //base 路径从当前目录出发
 					judge_base = true
 					path = path[:strings.LastIndex(path, "/")] + base[0][1][1:]
-				} else if len(base[0][1]) > 2 && base[0][1][:3] == "../" {  // base路径从上一级目录出发
+				} else if len(base[0][1]) > 2 && base[0][1][:3] == "../" { //base 路径从上一级目录出发
 					judge_base = true
 					pattern := "^[./]+$"
 					matched, _ := regexp.MatchString(pattern, base[0][1])
-					if matched { 	// 仅处理的base路径中只有 ./ 的
+					if matched { // 处理的 base 路径中只有 ./的
 						path = path[:strings.LastIndex(path, "/")+1] + base[0][1]
 					} else {
 						find_str := ""
@@ -143,14 +145,14 @@ func Spider(u string, num int) {
 							path = path[:strings.LastIndex(path, "/")+1] + base[0][1]
 						}
 					}
-				} else if len(base[0][1]) > 4 && strings.HasPrefix(base[0][1], "http") { //目录从http
+				} else if len(base[0][1]) > 4 && strings.HasPrefix(base[0][1], "http") { // base标签包含协议
 					judge_base = true
 					path = base[0][1]
 				} else if len(base[0][1]) > 0 {
 					judge_base = true
-					if base[0][1][0] == 47 { //base路径从根目录出发
+					if base[0][1][0] == 47 { //base 路径从根目录出发
 						path = base[0][1]
-					} else { //base路径未指明从哪路出发
+					} else { //base 路径未指明从哪出发
 						find_str := ""
 						if strings.Contains(base[0][1], "/") {
 							find_str = base[0][1][:strings.Index(base[0][1], "/")]
@@ -190,8 +192,8 @@ func Spider(u string, num int) {
 // 打印Validate进度
 func PrintProgress() {
 	config.Mux.Lock()
-	// num := len(result.ResultJs) + len(result.ResultUrl)
-	// fmt.Printf("\rValidate %.0f%%", float64(config.Progress+1)/float64(num+1)*100)
+	num := len(result.ResultJs) + len(result.ResultUrl)
+	fmt.Printf("\rValidate %.0f%%", float64(config.Progress+1)/float64(num+1)*100)
 	config.Progress++
 	config.Mux.Unlock()
 }
