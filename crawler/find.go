@@ -1,16 +1,17 @@
 package crawler
 
 import (
+	"regexp"
+	"strings"
+
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
 	"github.com/pingc0y/URLFinder/mode"
 	"github.com/pingc0y/URLFinder/result"
-	"regexp"
-	"strings"
 )
 
 // 分析内容中的js
-func jsFind(cont, host, scheme, path, source string, num int) {
+func jsFind(cont, host, scheme, path, source string, num int, judge_base bool) {
 	var cata string
 	care := regexp.MustCompile("/.*/{1}|/")
 	catae := care.FindAllString(path, -1)
@@ -31,6 +32,12 @@ func jsFind(cont, host, scheme, path, source string, num int) {
 			if js[0] == "" {
 				continue
 			}
+
+			// base标签的处理 ####
+			if judge_base {
+				js[0] = path + js[0]
+			}
+
 			if strings.HasPrefix(js[0], "https:") || strings.HasPrefix(js[0], "http:") {
 				switch AppendJs(js[0], source) {
 				case 0:
@@ -95,7 +102,7 @@ func jsFind(cont, host, scheme, path, source string, num int) {
 }
 
 // 分析内容中的url
-func urlFind(cont, host, scheme, path, source string, num int) {
+func urlFind(cont, host, scheme, path, source string, num int, judge_base bool) {
 	var cata string
 	care := regexp.MustCompile("/.*/{1}|/")
 	catae := care.FindAllString(path, -1)
@@ -104,6 +111,7 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 	} else {
 		cata = catae[0]
 	}
+
 	host = scheme + "://" + host
 
 	//url匹配正则
@@ -111,7 +119,6 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 	for _, re := range config.UrlFind {
 		reg := regexp.MustCompile(re)
 		urls := reg.FindAllStringSubmatch(cont, -1)
-		//fmt.Println(urls)
 		urls = urlFilter(urls)
 
 		//循环提取url放到结果中
@@ -119,6 +126,12 @@ func urlFind(cont, host, scheme, path, source string, num int) {
 			if url[0] == "" {
 				continue
 			}
+
+			// base标签的处理 ####
+			if judge_base {
+				url[0] = path + url[0]
+			}
+
 			if strings.HasPrefix(url[0], "https:") || strings.HasPrefix(url[0], "http:") {
 				switch AppendUrl(url[0], source) {
 				case 0:

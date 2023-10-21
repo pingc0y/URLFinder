@@ -1,17 +1,24 @@
 package crawler
 
 import (
-	"github.com/pingc0y/URLFinder/config"
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/pingc0y/URLFinder/config"
 )
 
 // 过滤JS
 func jsFilter(str [][]string) [][]string {
 
-	//对不需要的数据过滤
+	// 对不需要的数据过滤
 	for i := range str {
+		// 针对QueryUnescape函数做出了简单的预先处理
+		if strings.Contains(str[i][1], "%s%s:%s") {
+			str[i][1] = strings.Replace(str[i][1], "%s%s:%s", "", -1)
+			str[i][0] = strings.Replace(str[i][0], "%s%s:%s", "", -1)
+		}
+
 		str[i][0], _ = url.QueryUnescape(str[i][1])
 		str[i][0] = strings.TrimSpace(str[i][0])
 		str[i][0] = strings.Replace(str[i][0], " ", "", -1)
@@ -44,12 +51,18 @@ func urlFilter(str [][]string) [][]string {
 
 	//对不需要的数据过滤
 	for i := range str {
+		// 针对QueryUnescape函数做出了简单的预先处理
+		if strings.Contains(str[i][1], "%s%s:%s") {
+			str[i][1] = strings.Replace(str[i][1], "%s%s:%s", "", -1)
+			str[i][0] = strings.Replace(str[i][0], "%s%s:%s", "", -1)
+		}
 		str[i][0], _ = url.QueryUnescape(str[i][1])
 		str[i][0] = strings.TrimSpace(str[i][0])
 		str[i][0] = strings.Replace(str[i][0], " ", "", -1)
 		str[i][0] = strings.Replace(str[i][0], "\\/", "/", -1)
 		str[i][0] = strings.Replace(str[i][0], "%3A", ":", -1)
 		str[i][0] = strings.Replace(str[i][0], "%2F", "/", -1)
+
 		//去除不存在字符串和数字的url,判断为错误数据
 		match, _ := regexp.MatchString("[a-zA-Z]+|[0-9]+", str[i][0])
 		if !match {

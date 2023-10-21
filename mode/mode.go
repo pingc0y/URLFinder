@@ -18,12 +18,14 @@ type Config struct {
 }
 
 type Link struct {
-	Url      string
-	Status   string
-	Size     string
-	Title    string
-	Redirect string
-	Source   string
+	Url             string
+	Status          string
+	Size            string
+	Title           string
+	Redirect        string
+	Source          string
+	ResponseHeaders map[string]string
+	ResponseBody    string
 }
 
 type Info struct {

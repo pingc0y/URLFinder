@@ -3,24 +3,34 @@ package crawler
 import (
 	"bufio"
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/pingc0y/URLFinder/cmd"
-	"github.com/pingc0y/URLFinder/config"
-	"github.com/pingc0y/URLFinder/mode"
-	"github.com/pingc0y/URLFinder/result"
-	"github.com/pingc0y/URLFinder/util"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
+	"github.com/pingc0y/URLFinder/cmd"
+	"github.com/pingc0y/URLFinder/config"
+	"github.com/pingc0y/URLFinder/mode"
+	"github.com/pingc0y/URLFinder/result"
+	"github.com/pingc0y/URLFinder/util"
 )
 
 var client *http.Client
+
+// 用来存储响应体和响应头数据
+var ResBodyMap = make(map[string]string, 0)
+var ResHeaderMap = make(map[string]proto.NetworkHeaders, 0)
 
 func load() {
 
@@ -177,13 +187,23 @@ func ValidateFF() {
 		for i, s := range result.ResultJs {
 			config.Wg.Add(1)
 			config.Jsch <- 1
-			go JsState(s.Url, i, result.ResultJs[i].Source)
+			// 判断响应数据是否已经在页面加载过程存储
+			rod_flag := false
+			if len(ResBodyMap[s.Url]) != 0 {
+				rod_flag = true
+			}
+			go JsState(s.Url, i, result.ResultJs[i].Source, rod_flag)
 		}
 		//验证URL状态
 		for i, s := range result.ResultUrl {
 			config.Wg.Add(1)
 			config.Urlch <- 1
-			go UrlState(s.Url, i)
+			// 判断响应数据是否已经在页面加载过程存储
+			rod_flag := false
+			if len(ResBodyMap[s.Url]) != 0 {
+				rod_flag = true
+			}
+			go UrlState(s.Url, i, rod_flag)
 		}
 		config.Wg.Wait()
 
@@ -199,14 +219,240 @@ func ValidateFF() {
 	AddSource()
 }
 
+// 定义函数 url_parse，参数是一个字符串 u，返回值是三个字符串
+func url_parse(u string) (string, string, string) {
+	// 解析 u 为一个 URL 对象
+	u_str, err := url.Parse(u)
+	// 如果解析出错，就返回空字符串
+	if err != nil {
+		return "", "", ""
+	}
+	// 获取 URL 对象的 host、scheme、path 属性
+	host := u_str.Host
+	scheme := u_str.Scheme
+	path := u_str.Path
+	// 返回这三个属性的值
+	return host, scheme, path
+}
+
+// 提取响应体中的 Base 标签信息
+func extractBase(host, scheme, path, result string) (string, string, string, bool) {
+	judge_base := false
+	// 处理base标签
+	re := regexp.MustCompile("base.{1,5}href.{1,5}(http.+?//[^\\s]+?)[\"'‘“]")
+	base := re.FindAllStringSubmatch(result, -1)
+	if len(base) > 0 {
+		host = regexp.MustCompile("http.*?//([^/]+)").FindAllStringSubmatch(base[0][1], -1)[0][1]
+		scheme = regexp.MustCompile("(http.*?)://").FindAllStringSubmatch(base[0][1], -1)[0][1]
+		paths := regexp.MustCompile("http.*?//.*?(/.*)").FindAllStringSubmatch(base[0][1], -1)
+		if len(paths) > 0 {
+			path = paths[0][1]
+		} else {
+			path = "/"
+		}
+	} else { // 处理 "base 标签"
+		re := regexp.MustCompile("(?i)base.{0,5}[:=]\\s*\"(.*?)\"")
+		base := re.FindAllStringSubmatch(result, -1)
+		if len(base) > 0 {
+			pattern := "[^.\\/\\w]"
+			re, _ := regexp.Compile(pattern)
+			// 检查字符串是否包含匹配的字符
+			result := re.MatchString(base[0][1])
+			if !result { // 字符串中没有其他特殊字符
+				if len(base[0][1]) > 1 && base[0][1][:2] == "./" { // base 路径从当前目录出发
+					judge_base = true
+					path = path[:strings.LastIndex(path, "/")] + base[0][1][1:]
+				} else if len(base[0][1]) > 2 && base[0][1][:3] == "../" { // base 路径从上一级目录出发
+					judge_base = true
+					pattern := "^[./]+$"
+					matched, _ := regexp.MatchString(pattern, base[0][1])
+					if matched { // 处理的 base 路径中只有 ./的
+						path = path[:strings.LastIndex(path, "/")+1] + base[0][1]
+					} else {
+						find_str := ""
+						if strings.Contains(strings.TrimPrefix(base[0][1], "../"), "/") {
+							find_str = base[0][1][3 : strings.Index(strings.TrimPrefix(base[0][1], "../"), "/")+3]
+						} else {
+							find_str = base[0][1][3:]
+						}
+						if strings.Contains(path, find_str) {
+							path = path[:strings.Index(path, find_str)] + base[0][1][3:]
+						} else {
+							path = path[:strings.LastIndex(path, "/")+1] + base[0][1]
+						}
+					}
+				} else if len(base[0][1]) > 4 && strings.HasPrefix(base[0][1], "http") { // base 标签包含协议
+					judge_base = true
+					path = base[0][1]
+				} else if len(base[0][1]) > 0 {
+					judge_base = true
+					if base[0][1][0] == 47 { //base 路径从根目录出发
+						path = base[0][1]
+					} else { //base 路径未指明从哪路出发
+						find_str := ""
+						if strings.Contains(base[0][1], "/") {
+							find_str = base[0][1][:strings.Index(base[0][1], "/")]
+						} else {
+							find_str = base[0][1]
+						}
+						if strings.Contains(path, find_str) {
+							path = path[:strings.Index(path, find_str)] + base[0][1]
+						} else {
+							path = path[:strings.LastIndex(path, "/")+1] + base[0][1]
+						}
+					}
+				}
+				if !strings.HasSuffix(path, "/") {
+					path += "/"
+				}
+			}
+		}
+	}
+	return host, scheme, path, judge_base
+}
+
+// 获取网页加载的事件的响应体
+func rod_spider(u string, num int) {
+	// 初始化浏览器，无头浏览器：Headless(true)
+	launch := launcher.New().Headless(false).Set("test-type").Set("ignore-certificate-errors").
+		NoSandbox(true).Set("disable-gpu").Set("disable-plugins").Set("incognito").
+		Set("no-default-browser-check").Set("disable-dev-shm-usage").
+		Set("disable-plugins").MustLaunch()
+	browser := rod.New().ControlURL(launch).MustConnect()
+
+	// 添加关闭
+	defer browser.Close()
+
+	// 设置浏览器的证书错误处理，忽略所有证书错误
+	browser.MustIgnoreCertErrors(true)
+
+	// 设置浏览器打开的页面
+	pageTarget := proto.TargetCreateTarget{URL: u}
+	page, err := browser.Page(pageTarget)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// 在最后关闭页面
+	defer func() {
+		err := page.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+
+	// 设置页面的超时时间为 40 秒
+	page = page.Timeout(40 * time.Second)
+
+	// 创建一个空的 map，键是 proto.NetworkRequestID 类型，值是 string 类型
+	requestMap := make(map[string]string, 0)
+
+	// 使用 go 语句开启一个协程，在协程中处理页面的一些事件
+	go page.EachEvent(func(e *proto.PageJavascriptDialogOpening) {
+		// 处理 JavaScript 对话框
+		_ = proto.PageHandleJavaScriptDialog{Accept: true, PromptText: ""}.Call(page)
+	}, func(e *proto.NetworkResponseReceived) {
+		// 获取请求的 ID 和 URL
+		ResponseURL := e.Response.URL
+		// fmt.Println(e.Response.URL, e.RequestID)
+		ResHeaderMap[ResponseURL] = e.Response.Headers
+
+		// 在 requestMap 中填充数据
+		requestMap[ResponseURL] = ""
+
+	})()
+
+	// 等待页面加载完成，并处理可能出现的错误
+	pageLoadErr := page.WaitLoad()
+	if pageLoadErr != nil {
+		fmt.Println(pageLoadErr)
+	}
+
+	// 等待页面的 DOM 结构稳定
+	page.WaitStable(2 * time.Second)
+
+	// 打印页面源码
+	htmlStr, err := page.HTML()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for url, _ := range requestMap {
+		// 调用 page.GetResource 方法来获取响应体
+		ResponseBody, _ := page.GetResource(url)
+		requestMap[url] = string(ResponseBody)
+	}
+
+	// 存储页面源码
+	requestMap[u] = string(htmlStr)
+	// fmt.Println(requestMap[u])
+
+	// 遍历响应体，提取 Base 标签、提取 js 、提取 url 、
+	for url, body := range requestMap {
+		// 判断响应体是否为空
+		if len(body) == 0 {
+			continue
+		}
+
+		// 遍历 BodyFiler 切片中的每个元素
+		re := regexp.MustCompile("\\.jpeg\\?|\\.jpg\\?|\\.png\\?|.gif\\?|www\\.w3\\.org|example\\.com|.*,$|.*\\.jpeg$|.*\\.jpg$|.*\\.png$|.*\\.gif$|.*\\.ico$|.*\\.svg$|.*\\.vue$|.*\\.ts$")
+		if re.MatchString(url) {
+			continue
+		}
+
+		// 添加body数据
+		ResBodyMap[url] = body
+
+		// 将响应头数据转换成map存储
+		Res_header := make(map[string]string, 0)
+		if len(ResHeaderMap[url]) != 0 {
+			data, err := json.Marshal(ResHeaderMap[url])
+			if err != nil {
+				fmt.Println(err)
+			}
+			err = json.Unmarshal(data, &Res_header)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
+
+		// 添加首页动态加载的数据
+		if strings.HasSuffix(url, ".js") || strings.Contains(url, ".js?") {
+			result.ResultJs = append(result.ResultJs, mode.Link{Url: url, Status: strconv.Itoa(200), Size: strconv.Itoa(len(body)), ResponseHeaders: Res_header, ResponseBody: body})
+		} else {
+			result.ResultUrl = append(result.ResultUrl, mode.Link{Url: url, Status: strconv.Itoa(200), Size: strconv.Itoa(len(body)), ResponseHeaders: Res_header, ResponseBody: body})
+		}
+
+		host, scheme, path := url_parse(url)
+
+		judge_base := false
+		host, scheme, path, judge_base = extractBase(host, scheme, path, body)
+
+		//提取js
+		jsFind(body, host, scheme, path, u, num, judge_base)
+		//提取url
+		urlFind(body, host, scheme, path, u, num, judge_base)
+		// 防止base判断错误
+		if judge_base {
+			jsFind(body, host, scheme, path, u, num, false)
+			urlFind(body, host, scheme, path, u, num, false)
+		}
+
+	}
+
+}
+
 func start(u string) {
 	fmt.Println("Target URL: " + u)
-	config.Wg.Add(1)
-	config.Ch <- 1
-	go Spider(u, 1)
-	config.Wg.Wait()
-	config.Progress = 1
-	fmt.Printf("\r\nSpider OK \n")
+
+	// config.Wg.Add(1)
+	// config.Ch <- 1
+	// go Spider(u, 1) // ###
+	rod_spider(u, 1)
+	// config.Wg.Wait()
+	// config.Progress = 1
+
+	fmt.Printf("\r\nRod_Spider OK \n")
 	result.ResultUrl = util.RemoveRepeatElement(result.ResultUrl)
 	result.ResultJs = util.RemoveRepeatElement(result.ResultJs)
 	if cmd.S != "" {
@@ -217,13 +463,23 @@ func start(u string) {
 		for i, s := range result.ResultJs {
 			config.Wg.Add(1)
 			config.Jsch <- 1
-			go JsState(s.Url, i, result.ResultJs[i].Source)
+			// 判断响应数据是否已经在页面加载过程存储
+			rod_flag := false
+			if len(ResBodyMap[s.Url]) != 0 {
+				rod_flag = true
+			}
+			go JsState(s.Url, i, result.ResultJs[i].Source, rod_flag)
 		}
 		//验证URL状态
 		for i, s := range result.ResultUrl {
 			config.Wg.Add(1)
 			config.Urlch <- 1
-			go UrlState(s.Url, i)
+			// 判断响应数据是否已经在页面加载过程存储
+			rod_flag := false
+			if len(ResBodyMap[s.Url]) != 0 {
+				rod_flag = true
+			}
+			go UrlState(s.Url, i, rod_flag)
 		}
 		config.Wg.Wait()
 
@@ -241,7 +497,7 @@ func start(u string) {
 
 func Res() {
 	if len(result.ResultJs) == 0 && len(result.ResultUrl) == 0 {
-		fmt.Println("未获取到数据")
+		fmt.Println(os.Stdout, cmd.U, "Data not captured")
 		return
 	}
 	//打印还是输出
@@ -273,11 +529,13 @@ func AppendJs(ur string, urltjs string) int {
 	if err != nil {
 		return 2
 	}
+
 	for _, eachItem := range result.ResultJs {
 		if eachItem.Url == ur {
 			return 0
 		}
 	}
+
 	result.ResultJs = append(result.ResultJs, mode.Link{Url: ur})
 	if strings.HasSuffix(urltjs, ".js") {
 		result.Jsinurl[ur] = result.Jsinurl[urltjs]
@@ -301,6 +559,7 @@ func AppendUrl(ur string, urlturl string) int {
 	if err != nil {
 		return 2
 	}
+
 	for _, eachItem := range result.ResultUrl {
 		if eachItem.Url == ur {
 			return 0
@@ -383,5 +642,4 @@ func Initialization() {
 	result.Jstourl = make(map[string]string)
 	result.Urltourl = make(map[string]string)
 	result.Redirect = make(map[string]bool)
-
 }
