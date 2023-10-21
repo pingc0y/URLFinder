@@ -238,7 +238,7 @@ func url_parse(u string) (string, string, string) {
 // 提取响应体中的 Base 标签信息
 func extractBase(host, scheme, path, result string) (string, string, string, bool) {
 	judge_base := false
-	//处理base标签
+	// 处理base标签
 	re := regexp.MustCompile("base.{1,5}href.{1,5}(http.+?//[^\\s]+?)[\"'‘“]")
 	base := re.FindAllStringSubmatch(result, -1)
 	if len(base) > 0 {
@@ -250,7 +250,7 @@ func extractBase(host, scheme, path, result string) (string, string, string, boo
 		} else {
 			path = "/"
 		}
-	} else { //####
+	} else { // 处理 "base 标签"
 		re := regexp.MustCompile("(?i)base.{0,5}[:=]\\s*\"(.*?)\"")
 		base := re.FindAllStringSubmatch(result, -1)
 		if len(base) > 0 {
