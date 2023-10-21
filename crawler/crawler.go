@@ -114,7 +114,7 @@ func Spider(u string, num int) {
 		} else {
 			path = "/"
 		}
-	} else { //####
+	} else { // 处理 "base 标签"
 		re := regexp.MustCompile("(?i)base.{0,5}[:=]\\s*\"(.*?)\"")
 		base := re.FindAllStringSubmatch(result, -1)
 		if len(base) > 0 {
