@@ -28,7 +28,7 @@ import (
 
 var client *http.Client
 
-// 全局变量 存储body
+// 用来存储响应体和响应头数据
 var ResBodyMap = make(map[string]string, 0)
 var ResHeaderMap = make(map[string]proto.NetworkHeaders, 0)
 
@@ -337,7 +337,6 @@ func rod_spider(u string, num int) {
 	defer func() {
 		err := page.Close()
 		if err != nil {
-			// 处理错误
 			fmt.Println(err)
 		}
 	}()
@@ -401,8 +400,6 @@ func rod_spider(u string, num int) {
 			continue
 		}
 
-		// fmt.Println("目标url及响应体信息:  ", url, len(body))
-
 		// 添加body数据
 		ResBodyMap[url] = body
 
@@ -422,10 +419,8 @@ func rod_spider(u string, num int) {
 		// 添加首页动态加载的数据
 		if strings.HasSuffix(url, ".js") || strings.Contains(url, ".js?") {
 			result.ResultJs = append(result.ResultJs, mode.Link{Url: url, Status: strconv.Itoa(200), Size: strconv.Itoa(len(body)), ResponseHeaders: Res_header, ResponseBody: body})
-			// AppendJs(url, u)
 		} else {
 			result.ResultUrl = append(result.ResultUrl, mode.Link{Url: url, Status: strconv.Itoa(200), Size: strconv.Itoa(len(body)), ResponseHeaders: Res_header, ResponseBody: body})
-			// AppendUrl(url, u)
 		}
 
 		host, scheme, path := url_parse(url)
@@ -535,13 +530,6 @@ func AppendJs(ur string, urltjs string) int {
 		return 2
 	}
 
-	// 过滤其他ip ####
-	host1, _, _ := url_parse(ur)
-	host2, _, _ := url_parse(urltjs)
-	if host1 != host2 {
-		return 2
-	}
-
 	for _, eachItem := range result.ResultJs {
 		if eachItem.Url == ur {
 			return 0
@@ -569,13 +557,6 @@ func AppendUrl(ur string, urlturl string) int {
 	}
 	_, err := url.Parse(ur)
 	if err != nil {
-		return 2
-	}
-
-	// 过滤其他ip ####
-	host1, _, _ := url_parse(ur)
-	host2, _, _ := url_parse(urlturl)
-	if host1 != host2 {
 		return 2
 	}
 
