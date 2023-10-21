@@ -11,8 +11,9 @@ import (
 // 过滤JS
 func jsFilter(str [][]string) [][]string {
 
-	//对不需要的数据过滤
+	// 对不需要的数据过滤
 	for i := range str {
+		// 针对QueryUnescape函数做出了简单的预先处理
 		if strings.Contains(str[i][1], "%s%s:%s") {
 			str[i][1] = strings.Replace(str[i][1], "%s%s:%s", "", -1)
 			str[i][0] = strings.Replace(str[i][0], "%s%s:%s", "", -1)
@@ -50,7 +51,7 @@ func urlFilter(str [][]string) [][]string {
 
 	//对不需要的数据过滤
 	for i := range str {
-
+		// 针对QueryUnescape函数做出了简单的预先处理
 		if strings.Contains(str[i][1], "%s%s:%s") {
 			str[i][1] = strings.Replace(str[i][1], "%s%s:%s", "", -1)
 			str[i][0] = strings.Replace(str[i][0], "%s%s:%s", "", -1)
