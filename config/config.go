@@ -6,6 +6,7 @@ import (
 	"github.com/pingc0y/URLFinder/mode"
 	"gopkg.in/yaml.v3"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -104,7 +105,19 @@ func GetConfig(path string) {
 		}
 		os.Exit(1)
 	} else {
-		yaml.NewDecoder(f).Decode(&Conf)
+		defer f.Close()
+		var loaded mode.Config
+		if err := yaml.NewDecoder(f).Decode(&loaded); err != nil {
+			fmt.Println("配置文件解析错误,请检查yaml格式")
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		if err := ValidateRegexConfig(loaded); err != nil {
+			fmt.Println("配置文件正则错误,请检查配置文件")
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		Conf = loaded
 		JsFind = Conf.JsFind
 		UrlFind = Conf.UrlFind
 		JsFiler = Conf.JsFiler
@@ -123,4 +136,31 @@ func GetConfig(path string) {
 		cmd.TI = Conf.Timeout
 	}
 
+}
+
+func ValidateRegexConfig(conf mode.Config) error {
+	groups := []struct {
+		name     string
+		patterns []string
+	}{
+		{name: "jsFind", patterns: conf.JsFind},
+		{name: "urlFind", patterns: conf.UrlFind},
+		{name: "jsFiler", patterns: conf.JsFiler},
+		{name: "urlFiler", patterns: conf.UrlFiler},
+	}
+	for name, patterns := range conf.InfoFind {
+		groups = append(groups, struct {
+			name     string
+			patterns []string
+		}{name: "infoFind." + name, patterns: patterns})
+	}
+
+	for _, group := range groups {
+		for i, pattern := range group.patterns {
+			if _, err := regexp.Compile(pattern); err != nil {
+				return fmt.Errorf("%s[%d]: %w", group.name, i, err)
+			}
+		}
+	}
+	return nil
 }

@@ -141,14 +141,15 @@ func OutFileCsv(out string) {
 			fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").csv"
 		}
 	}
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
-
-	resultWriter := csv.NewWriter(file)
-	// 写数据到文件
+	file, err := createOutputFile(fileName)
 	if err != nil {
 		fmt.Println("open file error:", err)
 		return
 	}
+	defer file.Close()
+
+	resultWriter := csv.NewWriter(file)
+	// 写数据到文件
 	if cmd.S == "" {
 		resultWriter.Write([]string{"url", "Source"})
 	} else {
@@ -255,6 +256,10 @@ func OutFileCsv(out string) {
 	}
 
 	resultWriter.Flush()
+	if err := resultWriter.Error(); err != nil {
+		fmt.Println("csv保存失败:", err)
+		return
+	}
 
 	fmt.Println(strconv.Itoa(len(ResultJsHost)+len(ResultJsOther))+"JS + "+strconv.Itoa(len(ResultUrlHost)+len(ResultUrlOther))+"URL --> ", file.Name())
 
@@ -330,7 +335,7 @@ func OutFileJson(out string) {
 			fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").json"
 		}
 	}
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := createOutputFile(fileName)
 	if err != nil {
 		fmt.Printf("创建失败：%s", err)
 		return
@@ -363,7 +368,10 @@ func OutFileJson(out string) {
 	}
 	buf := bufio.NewWriter(file)
 	// 字节写入
-	buf.Write(data)
+	if _, err := buf.Write(data); err != nil {
+		fmt.Println("json保存失败:", err)
+		return
+	}
 	// 将缓冲中的数据写入
 	err = buf.Flush()
 	if err != nil {
@@ -415,16 +423,18 @@ func OutFileHtml(out string) {
 			fileName = cmd.O + "/" + host + "/" + host + "(" + strconv.Itoa(fileNum) + ").html"
 		}
 	}
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
-
-	file.WriteString("\xEF\xBB\xBF") // 写入UTF-8 BOM,防止中文乱码
-	// 写数据到文件
+	file, err := createOutputFile(fileName)
 	if err != nil {
 		fmt.Println("open file error:", err)
 		return
 	}
 	defer file.Close()
 
+	if _, err := file.WriteString("\xEF\xBB\xBF"); err != nil {
+		fmt.Println("html保存失败:", err)
+		return
+	}
+	// 写数据到文件
 	writer := bufio.NewWriter(file)
 
 	if cmd.D == "" {
@@ -498,10 +508,20 @@ func OutFileHtml(out string) {
 		}
 	}
 	htmlTemp = strings.Replace(htmlTemp, "{Info}", Infostr, -1)
-	writer.WriteString(htmlTemp)
-	writer.Flush() //内容是先写到缓存对,所以需要调用flush将缓存对数据真正写到文件中
+	if _, err := writer.WriteString(htmlTemp); err != nil {
+		fmt.Println("html保存失败:", err)
+		return
+	}
+	if err := writer.Flush(); err != nil { //内容是先写到缓存对,所以需要调用flush将缓存对数据真正写到文件中
+		fmt.Println("html保存失败:", err)
+		return
+	}
 	fmt.Println(strconv.Itoa(len(ResultJsHost)+len(ResultJsOther))+"JS + "+strconv.Itoa(len(ResultUrlHost)+len(ResultUrlOther))+"URL --> ", file.Name())
 	return
+}
+
+func createOutputFile(fileName string) (*os.File, error) {
+	return os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 }
 
 // 打印

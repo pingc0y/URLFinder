@@ -2,9 +2,11 @@ package result
 
 import (
 	stdhtml "html"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/mode"
 )
 
@@ -46,4 +48,49 @@ func TestOutHtmlInfoStringEscapesInfoFields(t *testing.T) {
 			t.Fatalf("outHtmlInfoString() did not contain escaped value %q in %q", raw, got)
 		}
 	}
+}
+
+func TestOutFileHtmlHandlesOpenErrorWithoutPanic(t *testing.T) {
+	oldU, oldS, oldO := cmd.U, cmd.S, cmd.O
+	t.Cleanup(func() {
+		cmd.U, cmd.S, cmd.O = oldU, oldS, oldO
+	})
+
+	cmd.U = "https://target.test"
+	cmd.S = ""
+	cmd.O = ""
+	ResultJs = nil
+	ResultUrl = []mode.Link{{Url: "https://target.test/api"}}
+	Infos = nil
+	Fuzzs = nil
+	Domains = nil
+
+	assertNotPanic(t, func() {
+		OutFileHtml(filepath.Join(t.TempDir(), "missing", "out.html"))
+	})
+}
+
+func TestCreateOutputFileReturnsOpenError(t *testing.T) {
+	file, err := createOutputFile(filepath.Join(t.TempDir(), "missing", "out.html"))
+	if err == nil {
+		if file != nil {
+			file.Close()
+		}
+		t.Fatal("createOutputFile() error = nil, want open error")
+	}
+	if file != nil {
+		t.Fatal("createOutputFile() file != nil when open fails")
+	}
+}
+
+func assertNotPanic(t *testing.T, fn func()) {
+	t.Helper()
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("function panicked: %v", r)
+		}
+	}()
+
+	fn()
 }
