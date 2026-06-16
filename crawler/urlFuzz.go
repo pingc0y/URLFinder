@@ -7,7 +7,6 @@ import (
 	"github.com/pingc0y/URLFinder/mode"
 	"github.com/pingc0y/URLFinder/result"
 	"github.com/pingc0y/URLFinder/util"
-	"io"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -74,7 +73,7 @@ func fuzzGet(u string) {
 	code := response.StatusCode
 	if strings.Contains(cmd.S, strconv.Itoa(code)) || cmd.S == "all" {
 		var length int
-		dataBytes, err := io.ReadAll(response.Body)
+		dataBytes, err := util.ReadAllLimited(response.Body)
 		if err != nil {
 			length = 0
 		} else {

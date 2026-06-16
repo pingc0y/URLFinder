@@ -7,7 +7,6 @@ import (
 	"github.com/pingc0y/URLFinder/config"
 	"github.com/pingc0y/URLFinder/result"
 	"github.com/pingc0y/URLFinder/util"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -31,7 +30,7 @@ func Spider(u string, num int) {
 	//标记完成
 
 	u, _ = url.QueryUnescape(u)
-	if num > 1 && cmd.D != "" && !regexp.MustCompile(cmd.D).MatchString(u) {
+	if num > 1 && cmd.D != "" && !util.RegexpMatch(cmd.D, u) {
 		return
 	}
 	if GetEndUrl(u) {
@@ -97,14 +96,14 @@ func Spider(u string, num int) {
 			return
 		}
 		defer reader.Close()
-		con, err := io.ReadAll(reader)
+		con, err := util.ReadAllLimited(reader)
 		if err != nil {
 			return
 		}
 		result = string(con)
 	} else {
 		//提取url用于拼接其他url或js
-		dataBytes, err := io.ReadAll(response.Body)
+		dataBytes, err := util.ReadAllLimited(response.Body)
 		if err != nil {
 			return
 		}

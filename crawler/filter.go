@@ -56,6 +56,10 @@ func urlFilter(str [][]string) [][]string {
 			str[i][0] = ""
 			continue
 		}
+		if isNonFetchableReference(str[i][0]) {
+			str[i][0] = ""
+			continue
+		}
 
 		//对抓到的域名做处理
 		re := regexp.MustCompile("([a-z0-9\\-]+\\.)+([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?").FindAllString(str[i][0], 1)
@@ -75,4 +79,20 @@ func urlFilter(str [][]string) [][]string {
 
 	}
 	return str
+}
+
+func isNonFetchableReference(raw string) bool {
+	ref := strings.TrimSpace(raw)
+	if ref == "" || strings.HasPrefix(ref, "#") {
+		return true
+	}
+	if strings.HasPrefix(ref, "/") {
+		return false
+	}
+	parsed, err := url.Parse(ref)
+	if err != nil || parsed.Scheme == "" {
+		return false
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	return scheme != "http" && scheme != "https"
 }

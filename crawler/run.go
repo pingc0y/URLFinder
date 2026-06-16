@@ -44,8 +44,8 @@ func load() {
 
 	if cmd.T != 50 {
 		config.Ch = make(chan int, cmd.T)
-		config.Jsch = make(chan int, cmd.T/10*3)
-		config.Urlch = make(chan int, cmd.T/10*7)
+		config.Jsch = make(chan int, validationChannelCap(cmd.T, 3))
+		config.Urlch = make(chan int, validationChannelCap(cmd.T, 7))
 	}
 
 	tr := &http.Transport{
@@ -92,6 +92,14 @@ func load() {
 		},
 	}
 
+}
+
+func validationChannelCap(thread, ratio int) int {
+	capacity := thread / 10 * ratio
+	if capacity < 1 {
+		return 1
+	}
+	return capacity
 }
 
 func Run() {

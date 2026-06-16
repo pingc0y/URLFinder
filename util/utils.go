@@ -3,6 +3,7 @@ package util
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
@@ -17,6 +18,10 @@ import (
 	"strings"
 	"time"
 )
+
+const MaxResponseBodySize int64 = 10 * 1024 * 1024
+
+var ErrResponseTooLarge = errors.New("response body too large")
 
 // MergeArray 合并数组
 func MergeArray(dest []mode.Link, src []mode.Link) (result []mode.Link) {
@@ -111,19 +116,36 @@ func GetProtocol(domain string) string {
 		return domain
 	}
 
-	response, err := http.Get("https://" + domain)
-	if err == nil {
+	if requestOK("https://" + domain) {
 		return "https://" + domain
 	}
-	response, err = http.Get("http://" + domain)
-	if err == nil {
-		return "http://" + domain
-	}
-	defer response.Body.Close()
-	if response.TLS == nil {
+	if requestOK("http://" + domain) {
 		return "http://" + domain
 	}
 	return ""
+}
+
+func requestOK(rawURL string) bool {
+	response, err := http.Get(rawURL)
+	if response != nil && response.Body != nil {
+		response.Body.Close()
+	}
+	return err == nil
+}
+
+func ReadAllLimited(r io.Reader) ([]byte, error) {
+	return readAllLimited(r, MaxResponseBodySize)
+}
+
+func readAllLimited(r io.Reader, max int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(r, max+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > max {
+		return nil, ErrResponseTooLarge
+	}
+	return data, nil
 }
 
 // 提取顶级域名
@@ -205,11 +227,19 @@ func domainNameFilter(url string) string {
 	re := regexp.MustCompile("://([a-z0-9\\-]+\\.)*([a-z0-9\\-]+\\.[a-z0-9\\-]+)(:[0-9]+)?")
 	hosts := re.FindAllString(url, 1)
 	if len(hosts) != 0 {
-		if !regexp.MustCompile(cmd.D).MatchString(hosts[0]) {
+		if !RegexpMatch(cmd.D, hosts[0]) {
 			url = ""
 		}
 	}
 	return url
+}
+
+func RegexpMatch(pattern, value string) bool {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return false
+	}
+	return re.MatchString(value)
 }
 
 // 文件是否存在

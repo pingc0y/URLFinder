@@ -10,6 +10,7 @@ import (
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/mode"
 	"github.com/pingc0y/URLFinder/util"
+	stdhtml "html"
 	"net/url"
 	"os"
 	"regexp"
@@ -34,10 +35,20 @@ var (
 	Redirect map[string]bool
 )
 
+func escapeHTML(s string) string {
+	return stdhtml.EscapeString(s)
+}
+
 func outHtmlString(link mode.Link) string {
+	link.Url = escapeHTML(link.Url)
+	link.Status = escapeHTML(link.Status)
+	link.Size = escapeHTML(link.Size)
+	link.Title = escapeHTML(link.Title)
+	link.Redirect = escapeHTML(link.Redirect)
+	link.Source = escapeHTML(link.Source)
 	ht := `<tr class="ant-table-row ant-table-row-level-0" data-row-key="0">
-				<td class="ant-table-column-has-actions ant-table-column-has-sorters">
-					<a href="` + link.Url + `" target="_blank" >
+					<td class="ant-table-column-has-actions ant-table-column-has-sorters">
+						<a href="` + link.Url + `" target="_blank" >
 						` + link.Url + ` </a>
 				</td>
 				<td class="ant-table-column-has-actions ant-table-column-has-sorters">
@@ -62,9 +73,12 @@ func outHtmlString(link mode.Link) string {
 }
 
 func outHtmlInfoString(ty, val, sou string) string {
+	ty = escapeHTML(ty)
+	val = escapeHTML(val)
+	sou = escapeHTML(sou)
 	ht := `<tr class="ant-table-row ant-table-row-level-0" data-row-key="0">
-				<td class="ant-table-column-has-actions ant-table-column-has-sorters">
-					` + ty + `
+					<td class="ant-table-column-has-actions ant-table-column-has-sorters">
+						` + ty + `
 				</td>
 				<td class="ant-table-column-has-actions ant-table-column-has-sorters">
 					` + val + `
@@ -78,9 +92,10 @@ func outHtmlInfoString(ty, val, sou string) string {
 }
 
 func outHtmlDomainString(domain string) string {
+	domain = escapeHTML(domain)
 	ht := `<tr class="ant-table-row ant-table-row-level-0" data-row-key="0">
-				<td class="ant-table-column-has-actions ant-table-column-has-sorters">
-					` + domain + `
+					<td class="ant-table-column-has-actions ant-table-column-has-sorters">
+						` + domain + `
 				</td>
 			</tr>`
 	return ht
