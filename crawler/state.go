@@ -90,7 +90,7 @@ func JsState(u string, i int, sou string) {
 	defer response.Body.Close()
 
 	code := response.StatusCode
-	if strings.Contains(cmd.S, strconv.Itoa(code)) || cmd.S == "all" && (sou != "Fuzz" && code == 200) {
+	if statusCodeSelected(cmd.S, code) {
 		var length int
 		dataBytes, err := util.ReadAllLimited(response.Body)
 		if err != nil {
@@ -185,7 +185,7 @@ func UrlState(u string, i int) {
 	defer response.Body.Close()
 
 	code := response.StatusCode
-	if strings.Contains(cmd.S, strconv.Itoa(code)) || cmd.S == "all" {
+	if statusCodeSelected(cmd.S, code) {
 		var length int
 		dataBytes, err := util.ReadAllLimited(response.Body)
 		if err != nil {
@@ -211,4 +211,21 @@ func UrlState(u string, i int) {
 	} else {
 		result.ResultUrl[i].Url = ""
 	}
+}
+
+func statusCodeSelected(filter string, code int) bool {
+	filter = strings.TrimSpace(filter)
+	if strings.EqualFold(filter, "all") {
+		return true
+	}
+	if filter == "" {
+		return false
+	}
+	want := strconv.Itoa(code)
+	for _, part := range strings.Split(filter, ",") {
+		if strings.TrimSpace(part) == want {
+			return true
+		}
+	}
+	return false
 }

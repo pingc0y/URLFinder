@@ -1,7 +1,9 @@
 package result
 
 import (
+	"encoding/csv"
 	stdhtml "html"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -81,6 +83,48 @@ func TestCreateOutputFileReturnsOpenError(t *testing.T) {
 	if file != nil {
 		t.Fatal("createOutputFile() file != nil when open fails")
 	}
+}
+
+func TestOutFileCsvUsesIDcardSectionTitle(t *testing.T) {
+	oldU, oldS, oldD := cmd.U, cmd.S, cmd.D
+	t.Cleanup(func() {
+		cmd.U, cmd.S, cmd.D = oldU, oldS, oldD
+		ResultJs = nil
+		ResultUrl = nil
+		Fuzzs = nil
+		Infos = nil
+		Domains = nil
+	})
+
+	cmd.U = "https://target.test"
+	cmd.S = ""
+	cmd.D = ""
+	ResultJs = nil
+	ResultUrl = nil
+	Fuzzs = nil
+	Infos = []mode.Info{{IDcard: []string{"110101199003074316"}, Source: "https://target.test/app.js"}}
+
+	out := filepath.Join(t.TempDir(), "result.csv")
+	OutFileCsv(out)
+
+	file, err := os.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	reader.FieldsPerRecord = -1
+	records, err := reader.ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, record := range records {
+		if len(record) > 0 && record[0] == "IDcard" {
+			return
+		}
+	}
+	t.Fatalf("CSV records did not contain IDcard section title: %#v", records)
 }
 
 func assertNotPanic(t *testing.T, fn func()) {

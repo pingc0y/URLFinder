@@ -1,7 +1,6 @@
 package util
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -115,18 +114,34 @@ func GetProtocol(domain string) string {
 	if strings.HasPrefix(domain, "http") {
 		return domain
 	}
+	timeout := time.Duration(cmd.TI) * time.Second
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	client := &http.Client{Timeout: timeout}
 
-	if requestOK("https://" + domain) {
+	return getProtocol(domain, client)
+}
+
+func getProtocol(domain string, client *http.Client) string {
+	if strings.HasPrefix(domain, "http") {
+		return domain
+	}
+
+	if requestOK(client, "https://"+domain) {
 		return "https://" + domain
 	}
-	if requestOK("http://" + domain) {
+	if requestOK(client, "http://"+domain) {
 		return "http://" + domain
 	}
 	return ""
 }
 
-func requestOK(rawURL string) bool {
-	response, err := http.Get(rawURL)
+func requestOK(client *http.Client, rawURL string) bool {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	response, err := client.Get(rawURL)
 	if response != nil && response.Body != nil {
 		response.Body.Close()
 	}
@@ -349,28 +364,29 @@ func PathExtract(urls []string) ([]string, []string) {
 
 // 去除状态码非404的404链接
 func Del404(urls []mode.Link) []mode.Link {
-	is := make(map[int]int)
-	//根据长度分别存放
+	is := make(map[string]int)
+	// 根据响应体大小分别存放
 	for _, v := range urls {
-		arr, ok := is[len(v.Size)]
+		arr, ok := is[v.Size]
 		if ok {
-			is[len(v.Size)] = arr + 1
+			is[v.Size] = arr + 1
 		} else {
-			is[len(v.Size)] = 1
+			is[v.Size] = 1
 		}
 	}
 	res := []mode.Link{}
-	//如果某个长度的数量大于全部的3分之2,那么就判定它是404页面
+	// 如果某个响应体大小占多数,那么判定它是统一404页面
 	for i, v := range is {
 		if v > len(urls)/2 {
 			for _, vv := range urls {
-				if len(vv.Size) != i {
+				if vv.Size != i {
 					res = append(res, vv)
 				}
 			}
+			return res
 		}
 	}
-	return res
+	return urls
 
 }
 
@@ -415,13 +431,7 @@ func GetUserAgent() string {
 func GetUpdate() {
 
 	url := fmt.Sprintf("https://api.github.com/repos/pingc0y/URLFinder/releases/latest")
-	client := &http.Client{
-		Timeout: time.Second * 2,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			Proxy:           http.ProxyFromEnvironment,
-		},
-	}
+	client := updateHTTPClient()
 	resp, err := client.Get(url)
 	if err != nil {
 		cmd.XUpdate = "更新检测失败"
@@ -451,4 +461,13 @@ func GetUpdate() {
 		cmd.XUpdate = "已是最新版本"
 	}
 
+}
+
+func updateHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: time.Second * 2,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		},
+	}
 }

@@ -140,25 +140,31 @@ func GetConfig(path string) {
 
 func ValidateRegexConfig(conf mode.Config) error {
 	groups := []struct {
-		name     string
-		patterns []string
+		name           string
+		patterns       []string
+		requireCapture bool
 	}{
-		{name: "jsFind", patterns: conf.JsFind},
-		{name: "urlFind", patterns: conf.UrlFind},
+		{name: "jsFind", patterns: conf.JsFind, requireCapture: true},
+		{name: "urlFind", patterns: conf.UrlFind, requireCapture: true},
 		{name: "jsFiler", patterns: conf.JsFiler},
 		{name: "urlFiler", patterns: conf.UrlFiler},
 	}
 	for name, patterns := range conf.InfoFind {
 		groups = append(groups, struct {
-			name     string
-			patterns []string
-		}{name: "infoFind." + name, patterns: patterns})
+			name           string
+			patterns       []string
+			requireCapture bool
+		}{name: "infoFind." + name, patterns: patterns, requireCapture: true})
 	}
 
 	for _, group := range groups {
 		for i, pattern := range group.patterns {
-			if _, err := regexp.Compile(pattern); err != nil {
+			re, err := regexp.Compile(pattern)
+			if err != nil {
 				return fmt.Errorf("%s[%d]: %w", group.name, i, err)
+			}
+			if group.requireCapture && re.NumSubexp() == 0 {
+				return fmt.Errorf("%s[%d]: missing capture group", group.name, i)
 			}
 		}
 	}

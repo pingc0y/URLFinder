@@ -42,6 +42,11 @@ func load() {
 	}
 	cmd.U = u.String()
 
+	if err := cmd.ValidateRuntimeOptions(cmd.CurrentRuntimeOptions()); err != nil {
+		fmt.Println("参数错误:", err)
+		os.Exit(1)
+	}
+
 	if cmd.T != 50 {
 		config.Ch = make(chan int, cmd.T)
 		config.Jsch = make(chan int, validationChannelCap(cmd.T, 3))
@@ -292,7 +297,11 @@ func AppendJs(ur string, urltjs string) int {
 	} else {
 		re := regexp.MustCompile("[a-zA-z]+://[^\\s]*/|[a-zA-z]+://[^\\s]*")
 		u := re.FindAllStringSubmatch(urltjs, -1)
-		result.Jsinurl[ur] = u[0][0]
+		if len(u) == 0 {
+			result.Jsinurl[ur] = urltjs
+		} else {
+			result.Jsinurl[ur] = u[0][0]
+		}
 	}
 	result.Jstourl[ur] = urltjs
 	return 0

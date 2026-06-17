@@ -10,7 +10,7 @@ URLFinder是一款快速、全面、易用的页面信息提取工具
 
 
 
-有什么需求或bug欢迎各位师傅提交lssues
+有什么需求或bug欢迎各位师傅提交Issues
 
 ## 快速使用
 单url
@@ -48,7 +48,7 @@ URLFinder.exe -s all -m 3 -ff url.txt -o .
         3  安全深入抓取（过滤delete,remove等敏感路由） 
 -max 最大抓取数
 -o  结果导出到csv、json、html文件,需指定导出文件目录（.代表当前目录）
--s  显示指定状态码,all为显示全部  
+-s  显示指定状态码,all为显示全部（多个状态码用英文逗号分隔,如 200,403）
 -t  设置线程数（默认50）
 -time 设置超时时间（默认5,单位秒）
 -u  目标URL  
@@ -58,6 +58,37 @@ URLFinder.exe -s all -m 3 -ff url.txt -o .
         2  2级目录组合fuzz
         3  3级目录组合fuzz（适合少量链接使用）
 ```
+
+## 配置文件说明
+
+使用 `-i` 时会加载当前目录下的 `config.yaml`。如果文件不存在,程序会生成默认配置文件并退出,可按需修改后再次运行。
+
+常用配置项:
+
+```
+proxy      代理地址,格式与 -x 相同
+timeout    请求超时时间,单位秒
+thread     并发线程数,必须大于0
+urlSteps   URL深入抓取层数
+jsSteps    JS深入抓取层数
+max        最大抓取链接数,必须大于0
+headers    自定义请求头
+jsFind     JS提取正则
+urlFind    URL提取正则
+infoFind   敏感信息提取正则
+jsFiler    JS过滤正则
+urlFiler   URL过滤正则
+risks      -m 3 安全模式下跳过的危险路径关键词
+jsFuzzPath JS fuzz字典
+```
+
+注意:
+
+- `jsFind`、`urlFind`、`infoFind` 是提取规则,每条正则必须包含至少一个捕获组,程序会使用第一个捕获组作为提取结果。
+- `jsFiler`、`urlFiler` 是过滤规则,不需要捕获组。
+- 新配置建议使用 `infoFind`; 旧版配置中的 `infoFiler` 仍会兼容读取。
+- 程序启动时会校验配置正则和运行参数,例如 `thread`、`timeout`、`max` 必须大于0。
+
 ## 使用截图
 
 [![0.jpg](https://github.com/pingc0y/URLFinder/raw/master/img/0.jpg)](https://github.com/pingc0y/URLFinder/raw/master/img/0.jpg)   
@@ -76,48 +107,79 @@ fuzz功能是基于抓到的404目录和路径。将其当作字典,随机组合
 结果会优先显示200,按从小到大排序（输入的域名最优先,就算是404也会排序在其他子域名的200前面）
 
 为了更好的兼容和防止漏抓链接,放弃了低误报率,错误的链接会变多但漏抓概率变低,可通过 ‘-s 200’ 筛选状态码过滤无效的链接（但不推荐只看200状态码）
-##  编译
-以下是在windows环境下,编译出各平台可执行文件的命令
+## 编译与发布
+
+推荐使用 Go 1.26.4 或更新的安全补丁版本。
+
+本地验证:
+
+```
+go mod tidy
+go test ./...
+go vet ./...
+go build ./...
+go test -race ./...
+go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
+```
+
+发布包由 GitHub Actions 在推送 tag 时通过 GoReleaser 自动构建,版本号会从 tag 注入到程序的更新提示中。
+
+以下是在windows环境下,手动编译出各平台可执行文件的命令:
 
 ```
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o ./URLFinder-windows-amd64.exe
+go build -ldflags "-s -w -X github.com/pingc0y/URLFinder/cmd.Update=dev" -o ./URLFinder-windows-amd64.exe
 
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=386
-go build -ldflags "-s -w" -o ./URLFinder-windows-386.exe
+go build -ldflags "-s -w -X github.com/pingc0y/URLFinder/cmd.Update=dev" -o ./URLFinder-windows-386.exe
 
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o ./URLFinder-linux-amd64
+go build -ldflags "-s -w -X github.com/pingc0y/URLFinder/cmd.Update=dev" -o ./URLFinder-linux-amd64
 
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=arm64
-go build -ldflags "-s -w" -o ./URLFinder-linux-arm64
+go build -ldflags "-s -w -X github.com/pingc0y/URLFinder/cmd.Update=dev" -o ./URLFinder-linux-arm64
 
 SET CGO_ENABLED=0
 SET GOOS=linux
 SET GOARCH=386
-go build -ldflags "-s -w" -o ./URLFinder-linux-386
+go build -ldflags "-s -w -X github.com/pingc0y/URLFinder/cmd.Update=dev" -o ./URLFinder-linux-386
 
 SET CGO_ENABLED=0
 SET GOOS=darwin
 SET GOARCH=amd64
-go build -ldflags "-s -w" -o ./URLFinder-macos-amd64
+go build -ldflags "-s -w -X github.com/pingc0y/URLFinder/cmd.Update=dev" -o ./URLFinder-macos-amd64
 
 SET CGO_ENABLED=0
 SET GOOS=darwin
 SET GOARCH=arm64
-go build -ldflags "-s -w" -o ./URLFinder-macos-arm64
+go build -ldflags "-s -w -X github.com/pingc0y/URLFinder/cmd.Update=dev" -o ./URLFinder-macos-arm64
 ```
 
 
 ## 更新说明
+2026/6/17
+- 新增 GitHub Actions CI,覆盖 test、vet、build、race 和 govulncheck
+- 新增 GoReleaser v2 发布配置,发布时自动注入版本号
+- 新增 配置正则捕获组校验和运行参数校验
+- 优化 状态码过滤改为精确匹配
+- 优化 自动识别协议时使用超时控制
+- 优化 更新检查不再跳过TLS证书校验,-h帮助不触发联网检查
+- 修复 Fuzz结果误删、CSV身份证分组标题、异常source导致的数组越界
+
+2026/6/16
+- 修复 非HTTP引用被拼接成目标URL的问题
+- 修复 小线程数下状态验证通道容量为0导致卡住的问题
+- 修复 HTML输出转义和输出文件错误处理
+- 新增 响应体读取大小限制,降低异常大响应占用内存的风险
+
 2023/9/9  
 修复 -ff 重复验证问题  
 修复 自动识别协议bug  
@@ -250,4 +312,3 @@ go build -ldflags "-s -w" -o ./URLFinder-macos-arm64
 
 # 开发由来
 致敬JSFinder！开发此工具的初衷是因为经常使用 JSFinder 时会返回空或链接不完整,而且作者已经很久没有更新修复 bug 了。因此,萌生了自己开发一款类似工具的想法。
-

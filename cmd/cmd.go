@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gookit/color"
 	"os"
+	"strings"
 )
 
 var Update = "2026.6.16"
@@ -29,6 +30,55 @@ var (
 	MA = 99999
 	Z  int
 )
+
+type RuntimeOptions struct {
+	Thread  int
+	Timeout int
+	Max     int
+	Mode    int
+	Fuzz    int
+}
+
+func CurrentRuntimeOptions() RuntimeOptions {
+	return RuntimeOptions{
+		Thread:  T,
+		Timeout: TI,
+		Max:     MA,
+		Mode:    M,
+		Fuzz:    Z,
+	}
+}
+
+func ValidateRuntimeOptions(opts RuntimeOptions) error {
+	if opts.Thread < 1 {
+		return fmt.Errorf("thread must be greater than 0")
+	}
+	if opts.Timeout < 1 {
+		return fmt.Errorf("timeout must be greater than 0")
+	}
+	if opts.Max < 1 {
+		return fmt.Errorf("max must be greater than 0")
+	}
+	if opts.Mode < 1 || opts.Mode > 3 {
+		return fmt.Errorf("mode must be 1, 2, or 3")
+	}
+	if opts.Fuzz < 0 || opts.Fuzz > 3 {
+		return fmt.Errorf("fuzz must be 0, 1, 2, or 3")
+	}
+	return nil
+}
+
+func HelpRequested(args []string) bool {
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" || arg == "-help" || arg == "help" {
+			return true
+		}
+		if strings.HasPrefix(arg, "-h=") || strings.HasPrefix(arg, "--help=") || strings.HasPrefix(arg, "-help=") {
+			return true
+		}
+	}
+	return false
+}
 
 func init() {
 	flag.StringVar(&A, "a", "", "set user-agent\n设置user-agent请求头")

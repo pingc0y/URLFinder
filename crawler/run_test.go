@@ -5,6 +5,7 @@ import (
 
 	"github.com/pingc0y/URLFinder/cmd"
 	"github.com/pingc0y/URLFinder/config"
+	"github.com/pingc0y/URLFinder/result"
 )
 
 func TestLoadKeepsValidationChannelsUsableForSmallThreadCounts(t *testing.T) {
@@ -39,4 +40,34 @@ func TestLoadKeepsValidationChannelsUsableForSmallThreadCounts(t *testing.T) {
 	if cap(config.Urlch) < 1 {
 		t.Fatalf("cap(config.Urlch) = %d, want at least 1", cap(config.Urlch))
 	}
+}
+
+func TestAppendJsHandlesSourceWithoutURL(t *testing.T) {
+	Initialization()
+
+	assertNotPanic(t, func() {
+		got := AppendJs("https://example.com/app.js", "inline-script")
+		if got != 0 {
+			t.Fatalf("AppendJs() = %d, want 0", got)
+		}
+	})
+
+	if len(result.ResultJs) != 1 {
+		t.Fatalf("len(result.ResultJs) = %d, want 1", len(result.ResultJs))
+	}
+	if result.Jsinurl["https://example.com/app.js"] != "inline-script" {
+		t.Fatalf("Jsinurl fallback = %q, want source fallback", result.Jsinurl["https://example.com/app.js"])
+	}
+}
+
+func assertNotPanic(t *testing.T, fn func()) {
+	t.Helper()
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("function panicked: %v", r)
+		}
+	}()
+
+	fn()
 }

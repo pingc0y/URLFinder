@@ -234,7 +234,7 @@ func OutFileCsv(out string) {
 		}
 	}
 	resultWriter.Write([]string{""})
-	resultWriter.Write([]string{"Email"})
+	resultWriter.Write([]string{"IDcard"})
 	for i := range Infos {
 		for i2 := range Infos[i].IDcard {
 			resultWriter.Write([]string{Infos[i].IDcard[i2], "", "", "", Infos[i].Source})

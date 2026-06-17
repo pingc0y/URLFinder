@@ -44,3 +44,24 @@ func TestValidateRegexConfigRejectsInvalidPatterns(t *testing.T) {
 		t.Fatalf("ValidateRegexConfig() error = %q, want field name jsFind[0]", err)
 	}
 }
+
+func TestValidateRegexConfigRejectsFindPatternsWithoutCaptureGroup(t *testing.T) {
+	conf := mode.Config{
+		JsFind:  []string{`https://example\.com/.+\.js`},
+		UrlFind: []string{`(https://example\.com/api)`},
+		InfoFind: map[string][]string{
+			"Email": {`([a-z]+@example\.com)`},
+		},
+	}
+
+	err := ValidateRegexConfig(conf)
+	if err == nil {
+		t.Fatal("ValidateRegexConfig() error = nil, want missing capture group error")
+	}
+	if !strings.Contains(err.Error(), "jsFind[0]") {
+		t.Fatalf("ValidateRegexConfig() error = %q, want field name jsFind[0]", err)
+	}
+	if !strings.Contains(err.Error(), "capture group") {
+		t.Fatalf("ValidateRegexConfig() error = %q, want capture group hint", err)
+	}
+}

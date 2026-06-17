@@ -6,11 +6,14 @@ import (
 	"github.com/pingc0y/URLFinder/util"
 	"io"
 	"log"
+	"os"
 )
 
 func main() {
 	log.SetOutput(io.Discard)
-	util.GetUpdate()
+	if !cmd.HelpRequested(os.Args[1:]) {
+		util.GetUpdate()
+	}
 	cmd.Parse()
 	crawler.Run()
 }

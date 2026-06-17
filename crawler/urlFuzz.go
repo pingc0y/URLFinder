@@ -71,7 +71,7 @@ func fuzzGet(u string) {
 		defer response.Body.Close()
 	}
 	code := response.StatusCode
-	if strings.Contains(cmd.S, strconv.Itoa(code)) || cmd.S == "all" {
+	if statusCodeSelected(cmd.S, code) {
 		var length int
 		dataBytes, err := util.ReadAllLimited(response.Body)
 		if err != nil {
